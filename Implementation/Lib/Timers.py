@@ -1,5 +1,5 @@
 import py4hw
-from Memory import * 
+from Lib.Memory import * 
 
 #addres of each register
 
@@ -35,8 +35,8 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.OCR0B_addr_LS = 0x48
 
         #intterupts
-        self.TIMSK = 0
-        self.TIMSK_addr_LS = 0x6E
+        self.TIMSK0 = 0
+        self.TIMSK0_addr_LS = 0x6E
         self.TIFR0 = 0
         self.TIFR0_addr_IO = 0x15
         self.TIFR0_addr_LS = 0x35
@@ -68,8 +68,8 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.OCIE0B = 0
         self.TOIE0 = 0
 
-        self.OC0A = 0 # This shold be an output and bit 
-        self.OC1B = 0
+        self.toggleA = 0
+        self.toggleB = 0
 
         self.increment = True 
         self.PrevT0 = 0
@@ -84,6 +84,8 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.WGM = 0 
         self.CS = 0
         
+
+
         self.COM0A = 0
         self.COM0B = 0
 
@@ -101,55 +103,55 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                 self.port0.resp.prepare(0)
         elif ((self.ADDR == self.TCCR0B_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.TCCR0B_addr_LS)and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.TCCR0B)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.TCCR0B = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
         elif ((self.ADDR == self.TCNT0_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.TCNT0_addr_LS)and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.TCNT0)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.TCNT0 = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
         elif ((self.ADDR == self.OCR0A_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.OCR0A_addr_LS)and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.OCR0A)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.OCR0A = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
         elif ((self.ADDR == self.OCR0B_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.OCR0B_addr_LS)and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.OCR0B)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.OCR0B = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
         elif ((self.ADDR == self.TIFR0_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.TIFR0_addr_LS)and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.TIFR0)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.TIFR0 = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.TIMSK_addr_LS) and self.INSTYPE.get() == 0):
+        elif ((self.ADDR == self.TIMSK0_addr_LS) and self.INSTYPE.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
-                self.port0.read_data.prepare(self.GPIOR1)
+                self.port0.read_data.prepare(self.TIMSK0)
                 self.port0.resp.prepare(1)
             elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
-                self.GPIOR1 = self.port0.write_data.get()
+                self.TIMSK0 = self.port0.write_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
@@ -158,13 +160,13 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         
         # Parameter parsing
         #TCCR0B
-        self.FOC0A = (self.TCCR0B&0b1<<7)>>7
-        self.FOC0B = (self.TCCR0B&0b1<<6)>>6
+        self.FOC0A = (self.TCCR0B&(0b1<<7))>>7
+        self.FOC0B = (self.TCCR0B&(0b1<<6))>>6
         self.CS  = self.TCCR0B&0b111
 
         #TCCR0A
         self.COM0A = (self.TCCR0A>>6)&0b11
-        self.COM0B = (self.TCCR0B>>4)&0b11
+        self.COM0B = (self.TCCR0A>>4)&0b11
         self.WGM = self.TCCR0A&0b011 | (self.TCCR0B>>1)&0b100
 
         #TIMSK0
@@ -172,6 +174,8 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.OCIE0A = (self.TIMSK0>>1)&0b1
         self.TOIE0 = (self.TIMSK0&0b1)
 
+        self.toggleA = self.OC0A.get()
+        self.toggleB = self.OC0B.get()
 
         
         #prescaler set up 
@@ -210,28 +214,37 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
 
 
         #waveform generation mode 
+        #I should take in to account when OCR0A Updates
         if self.WGM == 0:   #0
             self.opMode = 'NORMAL'
-            self.TOP =  0xFF
+            self.TOP = 0xFF
+            self.BOTTOM = 0
+            self.direction = 'Increment'
         elif self.WGM == 1: #1  
             self.opMode = 'Phase_Correct_PWM'
-            self.TOP = 0xFF 
+            self.TOP = 0xFF
+            self.BOTTOM = 0
+            self.direction = 'Increment'
         elif self.WGM == 2: #2
             self.opMode = 'CTC'
             self.TOP = self.OCR0A
+            self.direction = 'Increment'
         elif self.WGM == 3: #3
             self.opMode = 'FAST_PWM'
             self.TOP = 0xFF
+            self.direction = 'Increment'
         elif self.WGM == 4: #4
             self.opMode = 'Reserved'
         elif self.WGM == 5: #5
             self.opMode = 'Phase_Correct_PWM'
             self.TOP = self.OCR0A
+            self.direction = 'Increment'
         elif self.WGM == 6: #6
             self.opMode = 'Reserved'
         elif self.WGM == 7: #7
             self.opMode = 'FAST_PWM'
             self.TOP = self.OCR0A
+            self.direction = 'Increment'
 
 
 
@@ -242,16 +255,27 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
             self.prescalerCounter = 0
             # Incrementing and Decrementing
 
-            if self.direction == 'Increment':
-                self.TCNT0  += 1
-                if self.TCNT0 > self.TOP: 
-                    self.TCNTO = self.BOTTOM
+
+
+            if self.opMode == 'Phase_Correct_PWM' :
+                if self.direction == 'Increment':
+                    self.TCNT0  += 1
+                    if self.TCNT0 == self.TOP: 
+                        self.direction = 'Decrement'
+
+                    elif self.direction == 'Decrement':
+                        self.TCNT0  -= 1
+                    if self.TCNT0 == self.BOTTOM:
+                        self.direction = 'Increment'
+
+            else:
+                if self.direction == 'Increment':
+                    self.TCNT0  += 1
+                    if self.TCNT0 > self.TOP: 
+                        self.TCNT0 = self.BOTTOM
 
             
-            elif self.direction == 'Decrement':
-                self.TCNT0  -= 1
-                if self.TCNT0 < self.BOTTOM:
-                    self.TCNT0 = self.TOP
+
 
             # comparing
             #OC0A 
@@ -261,113 +285,143 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
 
                 case 'NORMAL':
                     #OC0A
-                    if (self.COM0A1 == 0) and (self.COM0A0 == 1):
-                        #self.TOP = 0xFF
-                        #self.BOTTOM = 0
-                        if self.OCR0A == self.TCNTO:
-                            if self.OC0A.get() == 0:
+                    if self.COM0A == 1:
+                        if self.OCR0A == self.TCNT0:
+                            if self.toggleA == 0:
                                 self.OC0A.prepare(1)
+                                self.toggleA = 1
                             else:
                                 self.OC0A.prepare(0)
+                                self.toggleA = 0
 
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 0):
-                        if self.OCR0A == self.TCNTO:
+                    elif self.COM0A == 2:
+                        if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(0)
-
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 1):
-                        if self.OCR0A == self.TCNTO:
+                        else:
                             self.OC0A.prepare(1)
 
+                    elif self.COM0A == 3:
+                        if self.OCR0A <= self.TCNT0:
+                            self.OC0A.prepare(1)
+                        else:
+                            self.OC0A.prepare(0)
+
+                    else:
+                            self.OC0A.prepare(0)     
+                
                     #OC0B
-                    if (self.COM0B1 == 0) and (self.COM0B0 == 1):
-                        self.TOP = 0xFF
-                        self.BOTTOM = 0
-                        if self.OCR0B == self.TCNTO:
-                            if self.OC0B.get() == 0:
+                    if self.COM0B == 1:
+                        if self.OCR0B == self.TCNT0:
+                            if self.toggleB == 0:
                                 self.OC0B.prepare(1)
+                                self.toggleB = 1
                             else:
                                 self.OC0B.prepare(0)
+                                self.toggleB = 0
 
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 0):
-                        if self.OCR0B == self.TCNTO:
+                    elif self.COM0B == 2:
+                        if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(0)
+                        else:
+                            self.OC0B.prepare(1)                           
 
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 1):
-                        if self.OCR0B == self.TCNTO:
+                    elif self.COM0B == 3:
+                        if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(1)
+                        else:
+                            self.OC0B.prepare(0)   
+
+                    else:
+                            self.OC0B.prepare(0)
 
                 case 'FAST_PWM':
 
                     #OC0A
-                    if (self.COM0A1 == 0) and (self.COM0A0 == 1): # at 0 0 OC0A is disconected 
-                        #if self.WGM02 == 0: #normal port operation
-                        
-                        if self.WGM02 == 1: # Toggle OC0A on compare match
+                    if self.COM0A == 1: # at 0 0 OC0A is disconected 
+                        #if self.WGM == 0: #normal port operation
+                        if self.WGM == 7: # Toggle OC0A on compare match
                             if (self.OCR0A == self.TCNT0): 
-                                if self.OC0A.get() == 0:
+                                if self.toggleA == 0:
                                     self.OC0A.prepare(1)
+                                    self.toggleA = 1
                                 else:
                                     self.OC0A.prepare(0)
+                                    self.toggleA = 0
                                 
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 0):
-                        if self.OCR0A == self.TCNTO:
+                    elif self.COM0A == 2:
+                        if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(0)
-
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 1):
-                        if self.OCR0A == self.TCNTO:
+                        else:
                             self.OC0A.prepare(1)
 
+                    elif self.COM0A == 3:
+                        if self.OCR0A <= self.TCNT0:
+                            self.OC0A.prepare(1)
+                        else:
+                            self.OC0A.prepare(0)
+                    else:
+                        self.OC0A.prepare(0)
+
                     #OC0B
-                    if (self.COM0B1 == 0) and (self.COM0B0 == 1): # at 0 0 OC0A is disconected 
+                    #if self.COM0B == 1: # at 0 0 OC0A is disconected 
                         #if self.WGM02 == 0: #normal port operation
                         
-                        if self.WGM02 == 1: # Toggle OC0A on compare match
-                            if (self.OCR0B == self.TCNT0): 
-                                if self.OC0B.get() == 0:
-                                    self.OC0B.prepare(1)
-                                else:
-                                    self.OC0B.prepare(0)
+                    #    if self.WGM02 == 1: # Toggle OC0A on compare match
+                    #        if (self.OCR0B == self.TCNT0): 
+                    #            if self.OC0B.get() == 0:
+                    #                self.OC0B.prepare(1)
+                    #            else:
+                    #                self.OC0B.prepare(0)
                                 
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 0):
-                        if self.OCR0B == self.TCNTO:
+                    if self.COM0B == 2:
+                        if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(0)
-
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 1):
-                        if self.OCR0B == self.TCNTO:
+                        else:
                             self.OC0B.prepare(1)
+
+                    elif self.COM0B == 3:
+                        if self.OCR0B <= self.TCNT0:
+                            self.OC0B.prepare(1)
+                        else:
+                            self.OC0B.prepare(0)
+                    else:
+                        self.OC0B.prepare(0)
 
 
                 case 'Phase_Correct_PWM':
                     #OC0A
-                    if (self.COM0A1 == 0) and (self.COM0A0 == 1): # at 0 0 OC0A is disconected 
+                    if self.COM0A == 1: # at 0 0 OC0A is disconected 
                         #if self.WGM02 == 0: #normal port operation
                         
-                        if self.WGM02 == 1: # Toggle OC0A on compare match
-                            if self.OC0A.get() == 0:
-                                self.OC0A.prepare(1)
-                            else:
-                                self.OC0A.prepare(0)
+                        if self.WGM == 5: # Toggle OC0A on compare match 
+                            if (self.OCR0A == self.TCNT0): 
+                                if self.toggleA == 0:
+                                    self.OC0A.prepare(1)
+                                    self.toggleA = 1
+                                else:
+                                    self.OC0A.prepare(0)
+                                    self.toggleA = 0
                                 
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 0):
+                    elif self.COM0A == 2:
                         if self.direction == 'Increment':
-                            if self.OCR0A == self.TCNT0 :
+                            if self.OCR0A <= self.TCNT0 :
                                 self.OC0A.prepare(0)
                         
                         elif self.direction == 'Decrement':
-                            if self.OCR0A == self.TCNT0 :
+                            if self.OCR0A >= self.TCNT0 :
                                 self.OC0A.prepare(1)
 
-                    elif (self.COM0A1 == 1) and (self.COM0A0 == 1):
+                    elif self.COM0A == 3:
                         if self.direction == 'Increment':
-                            if self.OCR0A == self.TCNT0 :
+                            if self.OCR0A <= self.TCNT0 :
                                 self.OC0A.prepare(1)
                         
                         elif self.direction == 'Decrement':
-                            if self.OCR0A == self.TCNT0 :
+                            if self.OCR0A >= self.TCNT0 :
                                 self.OC0A.prepare(0)
 
                     #OC0B
-                    if (self.COM0B1 == 0) and (self.COM0B0 == 1): # at 0 0 OC0A is disconected 
+                    if self.COM0B == 1: # at 0 0 OC0A is disconected 
                         #if self.WGM02 == 0: #normal port operation
                         
                         if self.WGM02 == 1: # Toggle OC0A on compare match
@@ -376,34 +430,63 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                             else:
                                 self.OC0B.prepare(0)
                                 
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 0):
+                    elif self.COM0B == 2:
                         if self.direction == 'Increment':
-                            if self.OCR0B == self.TCNT0 :
+                            if self.OCR0B <= self.TCNT0 :
                                 self.OC0B.prepare(0)
                         
                         elif self.direction == 'Decrement':
-                            if self.OCR0B == self.TCNT0 :
+                            if self.OCR0B >= self.TCNT0 :
                                 self.OC0B.prepare(1)
 
-                    elif (self.COM0B1 == 1) and (self.COM0B0 == 1):
+                    elif self.COM0B == 3:
                         if self.direction == 'Increment':
-                            if self.OCR0B == self.TCNT0 :
+                            if self.OCR0B <= self.TCNT0 :
                                 self.OC0B.prepare(1)
                         
                         elif self.direction == 'Decrement':
-                            if self.OCR0B == self.TCNT0 :
+                            if self.OCR0B >= self.TCNT0 :
                                 self.OC0B.prepare(0)
 
+                case 'CTC' :
 
+                    #OC0A
+                    if self.COM0A == 1:
+                        if self.OCR0A == self.TCNT0:
+                            if self.toggleA == 0:
+                                self.OC0A.prepare(1)
+                                self.toggleA = 1
+                            else:
+                                self.OC0A.prepare(0)
+                                self.toggleA = 0
+
+                    elif self.COM0A == 2:
+                        if self.OCR0A <= self.TCNT0:
+                            self.OC0A.prepare(0)
+                        else:
+                            self.OC0A.prepare(1)
+
+                    elif self.COM0A == 3:
+                        if self.OCR0A <= self.TCNT0:
+                            self.OC0A.prepare(1)
+                        else:
+                            self.OC0A.prepare(0)
+
+                    else:
+                            self.OC0A.prepare(0)     
+                
+                    #OC0B
+
+                    self.OC0B.prepare(0)
 
 class TimerCounter1(py4hw.Logic): #16 Bit timer
 
-    def __init__(self,parent,name,port:MemoryInterface,INSTYPE,OC1B,OC1A,T0):
+    def __init__(self,parent,name,port:MemoryInterface,INSTYPE,OC1B,OC1A,T1):
         super().__init__(parent,name)
 
         self.port0 =  self.addInterfaceSink('port',port)
         self.INSTYPE = self.addIn('INSTYPE',INSTYPE)
-        self.T0 = self.addIn('T0',T0)
+        self.T1 = self.addIn('T1',T1)
         self.OC1B = self.addOut('OC1B',OC1B)
         self.OC1A = self.addOut('OC1A',OC1A)
         #creating the registers
@@ -417,7 +500,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
         self.OCR1AH_addr_LS = 0x89
 
         self.OCR1AL = 0
-        self.OCR1AL_addr_LS = 0x89
+        self.OCR1AL_addr_LS = 0x88
 
         self.ICR1H = 0
         self.ICR1H_addr_LS = 0x87 
@@ -448,12 +531,9 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
         self.TIFR1_addr_IO = 0x16
         self.TIFR1_addr_LS = 0x36
 
-        self.TIFR0 = 0
-        self.TIFR0_addr_IO = 0x15
-        self.TIFR0_addr_LS = 0x35
 
         self.increment = True 
-        self.PrevT0 = 0
+        self.PrevT1 = 0
 
         self.opMode = 'Normal'
         self.TOP = 0xFF
@@ -560,7 +640,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
                 self.port0.read_data.prepare(self.TCCR1B)
                 self.port0.resp.prepare(1)
-            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1)
+            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1):
                 self.TCCR1B = self.port0.read_data.get()
                 self.port0.resp.prepare(1)
             else:
@@ -655,19 +735,19 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
             self.prescaler = 1024
             self.increment = True 
         elif self.CS == 6: # External clock on T0 pin. Clock on falling edge.
-            if (self.PrevT0 == 1 and self.T0.get() == 0):
+            if (self.PrevT1 == 1 and self.T1.get() == 0):
                 self.prescaler = 1
                 self.increment = True
             else: 
                 self.increment = False
-            self.PrevT0 = self.T0.get()
+            self.PrevT1 = self.T1.get()
         elif self.CS == 7: # External clock on T0 pin. Clock on rising edge.
-            if (self.PrevT0 == 0 and self.T0.get() == 1):
+            if (self.PrevT1 == 0 and self.T1.get() == 1):
                 self.prescaler = 1
                 self.increment = True
             else:
                 self.increment = False
-            self.PrevT0 = self.T0.get()
+            self.PrevT1 = self.T1.get()
 
         self.WGM = self.WGM13<<3 | self.WGM12<<2 | self.WGM11<<1 | self.WGM10
         if self.WGM == 0:   #0
@@ -721,7 +801,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
             if self.direction == 'Increment':
                 self.TCNT0  += 1
                 if self.TCNT0 > self.TOP: 
-                    self.TCNTO = self.BOTTOM
+                    self. TCNT0 = self.BOTTOM
 
             
             elif self.direction == 'Decrement':
@@ -740,36 +820,36 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     if self.COM1A == 1:# 1
                         #self.TOP = 0xFF
                         #self.BOTTOM = 0
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             if self.OC1A.get() == 0:
                                 self.OC1A.prepare(1)
                             else:
                                 self.OC1A.prepare(0)
 
                     elif self.COM1A == 2: # 2
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3: # 3
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
                     if self.COM1B == 1:
                         self.TOP = 0xFF
                         self.BOTTOM = 0
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             if self.OC1B.get() == 0:
                                 self.OC1B.prepare(1)
                             else:
                                 self.OC1B.prepare(0)
 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
 
@@ -962,11 +1042,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1A.prepare(0)
                                 
                     elif self.COM1A == 2:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
@@ -981,11 +1061,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1B.prepare(0)
                                 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
                 case 'FAST_PWM_9bit':
@@ -1001,11 +1081,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1A.prepare(0)
                                 
                     elif self.COM1A == 2:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
@@ -1020,11 +1100,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1B.prepare(0)
                                 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
                 case 'FAST_PWM_10bit':
@@ -1040,11 +1120,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1A.prepare(0)
                                 
                     elif self.COM1A == 2:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
@@ -1059,11 +1139,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1B.prepare(0)
                                 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
                 case 'Phase_Correct_And_Frequency_PWM_I':
@@ -1185,9 +1265,10 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                 self.OC0B.prepare(0)
 
                 case 'CTC_I':
-                    
+                    print("CTC_I")    
 
                 case 'Reserved':
+                    print("Reserved")
 
 
                 case 'FAST_PWM_I':
@@ -1203,11 +1284,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1A.prepare(0)
                                 
                     elif self.COM1A == 2:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
@@ -1222,11 +1303,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1B.prepare(0)
                                 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
                 case 'FAST_PWM_O':
@@ -1242,11 +1323,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1A.prepare(0)
                                 
                     elif self.COM1A == 2:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(0)
 
                     elif self.COM1A == 3:
-                        if self.OCR1A == self.TCNTO:
+                        if self.OCR1A == self. TCNT0:
                             self.OC1A.prepare(1)
 
                     #OC0B
@@ -1261,11 +1342,11 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                                     self.OC1B.prepare(0)
                                 
                     elif self.COM1B == 2:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(0)
 
                     elif self.COM1B == 3:
-                        if self.OCR1B == self.TCNTO:
+                        if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
 
 
@@ -1317,7 +1398,7 @@ class TimerCounter2(py4hw.Logic): #8 Bit timer
     def clock(self):
 
         self.ADDR = self.port0.address.get()
-        if ((self.ADDR == self.TCCR2A_addr_LS) and self.INSTYPE.get() == 1):
+        if ((self.ADDR == self.TCCR2A_addr_LS) and (self.INSTYPE.get() == 1)):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.TCCR2A)
                 self.port0.resp.prepare(1)
@@ -1326,7 +1407,7 @@ class TimerCounter2(py4hw.Logic): #8 Bit timer
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0) #TVNT1L_addr_LS
-        elif ((self.ADDR == self.TCCR2B_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.TCCR2B_addr_LS) and (self.INSTYPE.get() == 1)):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
                 self.port0.read_data.prepare(self.TCCR2B)
                 self.port0.resp.prepare(1)
@@ -1335,7 +1416,7 @@ class TimerCounter2(py4hw.Logic): #8 Bit timer
                 self.port0.resp.prepare(1)   
             else:
                 self.port0.resp.prepare(0)  
-        elif ((self.ADDR == self.OCR2A_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.OCR2A_addr_LS) and (self.INSTYPE.get() == 1)):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
                 self.port0.read_data.prepare(self.OCR2A)
                 self.port0.resp.prepare(1)
@@ -1344,16 +1425,16 @@ class TimerCounter2(py4hw.Logic): #8 Bit timer
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.OCR2B_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.OCR2B_addr_LS) and (self.INSTYPE.get() == 1)):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
                 self.port0.read_data.prepare(self.OCR2B)
                 self.port0.resp.prepare(1)
-            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1)
+            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1):
                 self.OCR2B = self.port0.read_data.get()
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.TIMSK2) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.TIMSK2) and (self.INSTYPE.get() == 1)):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
                 self.port0.read_data.prepare(self.TIMSK2)
                 self.port0.resp.prepare(1)
