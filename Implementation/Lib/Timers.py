@@ -7,7 +7,7 @@ from Lib.Memory import *
 ## *_LS =  LD LDS ST STS instruction address
 class TimerCounter0(py4hw.Logic): #8 Bit timer 
 
-    def __init__(self,parent,name,port:MemoryInterface,INSTYPE,OC0B,OC0A,T0): # Signals to outside OC0B OC0A  
+    def __init__(self,parent,name,port:MemoryInterface,INSTYPE,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0): # Signals to outside OC0B OC0A  
         super().__init__(parent,name)
 
         self.port0 =  self.addInterfaceSink('port',port)
@@ -15,6 +15,10 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.T0 = self.addIn('T0',T0)
         self.OC0B = self.addOut('OC0B',OC0B)
         self.OC0A = self.addOut('OC0A',OC0A)
+
+        self.OCF0B = self.addOut('OCF0B',OCF0B)
+        self.OCF0A = self.addOut('OCF0A',OCF0A)
+        self.TOV0 = self.addOut('TOV0',TOV0)
 
         #creating the registers
         self.TCCR0A = 0 #Bit7:COM0A1 Bit6: COM0A0 Bit5: COM0B1 Bit4: COM0B0  Bit3: - Bit2: - Bit1: WGM01 Bit0: WGM00 
@@ -84,8 +88,6 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.WGM = 0 
         self.CS = 0
         
-
-
         self.COM0A = 0
         self.COM0B = 0
 
@@ -177,7 +179,6 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
         self.toggleA = self.OC0A.get()
         self.toggleB = self.OC0B.get()
 
-        
         #prescaler set up 
         if self.CS == 0: # No clock Source
             self.prescaler = 0 
@@ -255,8 +256,6 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
             self.prescalerCounter = 0
             # Incrementing and Decrementing
 
-
-
             if self.opMode == 'Phase_Correct_PWM' :
                 if self.direction == 'Increment':
                     self.TCNT0  += 1
@@ -267,15 +266,11 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                         self.TCNT0  -= 1
                     if self.TCNT0 == self.BOTTOM:
                         self.direction = 'Increment'
-
             else:
                 if self.direction == 'Increment':
                     self.TCNT0  += 1
                     if self.TCNT0 > self.TOP: 
                         self.TCNT0 = self.BOTTOM
-
-            
-
 
             # comparing
             #OC0A 
@@ -284,6 +279,7 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
             match self.opMode:
 
                 case 'NORMAL':
+
                     #OC0A
                     if self.COM0A == 1:
                         if self.OCR0A == self.TCNT0:
@@ -294,17 +290,38 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                                 self.OC0A.prepare(0)
                                 self.toggleA = 0
 
+
+                            #Interrupts
+                            if self.OCIE0A == 1:
+                                self.OCFOA = 1
+
                     elif self.COM0A == 2:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(0)
                         else:
                             self.OC0A.prepare(1)
 
+
+                        if self.OCR0A == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0A == 1:
+                                self.OCFOA = 1
+
                     elif self.COM0A == 3:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(1)
                         else:
                             self.OC0A.prepare(0)
+
+
+                        if self.OCR0A == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0A == 1:
+                                self.OCFOA = 1
+                            
+                    #Interrupts
+                    if self.OCIE0A == 1:
+                        self.OCFOA = 1
 
                     else:
                             self.OC0A.prepare(0)     
@@ -319,18 +336,31 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                                 self.OC0B.prepare(0)
                                 self.toggleB = 0
 
+                            #Interrupts
+                            if self.OCIE0B == 1:
+                                self.OCFOB = 1
+                        
                     elif self.COM0B == 2:
                         if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(0)
                         else:
-                            self.OC0B.prepare(1)                           
+                            self.OC0B.prepare(1)  
+
+                        if self.OCR0B == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0B == 1:
+                                self.OCFOB = 1      
 
                     elif self.COM0B == 3:
                         if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(1)
                         else:
-                            self.OC0B.prepare(0)   
+                            self.OC0B.prepare(0)  
 
+                        if self.OCR0B == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0B == 1:
+                                self.OCFOB = 1 
                     else:
                             self.OC0B.prepare(0)
 
@@ -346,19 +376,33 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                                     self.toggleA = 1
                                 else:
                                     self.OC0A.prepare(0)
-                                    self.toggleA = 0
-                                
+                                    self.toggleA = 0 
+
+                                #Interrupts
+                                if self.OCIE0A == 1:
+                                    self.OCFOA = 1
+
                     elif self.COM0A == 2:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(0)
                         else:
                             self.OC0A.prepare(1)
 
+                        if self.OCR0A == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0A == 1:
+                                self.OCIE0A = 1
+                        
                     elif self.COM0A == 3:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(1)
                         else:
                             self.OC0A.prepare(0)
+
+                        if self.OCR0A == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0A == 1:
+                                self.OCIE0A
                     else:
                         self.OC0A.prepare(0)
 
@@ -379,16 +423,26 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                         else:
                             self.OC0B.prepare(1)
 
+                        if self.OCR0B == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0B == 1:
+                                self.OCFOB = 1
+
                     elif self.COM0B == 3:
                         if self.OCR0B <= self.TCNT0:
                             self.OC0B.prepare(1)
                         else:
                             self.OC0B.prepare(0)
+
+                        if self.OCR0B == self.TCNT0:
+                            #Interrupts
+                            if self.OCIE0B == 1:
+                                self.OCFOB = 1
                     else:
                         self.OC0B.prepare(0)
 
-
                 case 'Phase_Correct_PWM':
+
                     #OC0A
                     if self.COM0A == 1: # at 0 0 OC0A is disconected 
                         #if self.WGM02 == 0: #normal port operation
@@ -400,8 +454,12 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                                     self.toggleA = 1
                                 else:
                                     self.OC0A.prepare(0)
-                                    self.toggleA = 0
-                                
+                                    self.toggleA = 0    
+
+                                if self.OCIE0A == 1:
+                                    self.OCFOA = 1
+
+
                     elif self.COM0A == 2:
                         if self.direction == 'Increment':
                             if self.OCR0A <= self.TCNT0 :
@@ -411,6 +469,7 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                             if self.OCR0A >= self.TCNT0 :
                                 self.OC0A.prepare(1)
 
+                            
                     elif self.COM0A == 3:
                         if self.direction == 'Increment':
                             if self.OCR0A <= self.TCNT0 :
@@ -429,7 +488,6 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                                 self.OC0B.prepare(1)
                             else:
                                 self.OC0B.prepare(0)
-                                
                     elif self.COM0B == 2:
                         if self.direction == 'Increment':
                             if self.OCR0B <= self.TCNT0 :
@@ -438,7 +496,6 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                         elif self.direction == 'Decrement':
                             if self.OCR0B >= self.TCNT0 :
                                 self.OC0B.prepare(1)
-
                     elif self.COM0B == 3:
                         if self.direction == 'Increment':
                             if self.OCR0B <= self.TCNT0 :
@@ -459,24 +516,20 @@ class TimerCounter0(py4hw.Logic): #8 Bit timer
                             else:
                                 self.OC0A.prepare(0)
                                 self.toggleA = 0
-
                     elif self.COM0A == 2:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(0)
                         else:
                             self.OC0A.prepare(1)
-
                     elif self.COM0A == 3:
                         if self.OCR0A <= self.TCNT0:
                             self.OC0A.prepare(1)
                         else:
                             self.OC0A.prepare(0)
-
                     else:
                             self.OC0A.prepare(0)     
                 
                     #OC0B
-
                     self.OC0B.prepare(0)
 
 class TimerCounter1(py4hw.Logic): #16 Bit timer
@@ -1348,7 +1401,6 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     elif self.COM1B == 3:
                         if self.OCR1B == self. TCNT0:
                             self.OC1B.prepare(1)
-
 
 class TimerCounter2(py4hw.Logic): #8 Bit timer 
 

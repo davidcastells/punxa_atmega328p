@@ -4,12 +4,12 @@
 #Acounted for 131
 #Decoded by the function 131 
 #Instructions found in test 98 + CBR + BRLO + BRCC + SBR + TST +CLR +LPM+ 16(for the SREG clear and set instructions) Total: 122 ,missing 9 instructions
-
-
+#SBR and CBR Fake instruction
+#SER is an alias for LDI Rd,0xFF
 #          #|15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
 #1         #| OP              | R| D| D  D  D  D| R  R  R  R|'ADD' 'ADC' 'SUB' 'SBC' 'AND' 'OR' 'EOR' 'CPSE' 'CP' 'CPC' 'MUL' 'MOV'
 #2         #| OP        | K  K  K  K| D  D  D  D| K  K  K  K|'SBCI' 'SUBI' 'ANDI' 'ORI' 'SBR' 'CBR' 'CPI'
-#3         #| OP                    | D  D  D  D| OP        |'SER'
+#3         #| OP                    | D  D  D  D| OP        |'SER' 
 #4         #| OP                       | D  D  D|OP| R  R  R|'MULSU' 'FMUL' 'FMULS' 'FMULSU'
 #5         #| OP                    | D  D  D  D| R  R  R  R| 'MULS' 'MOVW'
 #6         #| OP                    | K  K| D  D| K  K  K  K|'ADIW' 'SBIW' 

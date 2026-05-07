@@ -20,6 +20,7 @@ class MemoryInterface(Interface):
         self.read_data = self.addSinkToSource("readdata",data_width)
 
         self.address = self.addSourceToSink("address",address_width)
+        self.instype = self.addSourceToSink("instype",1)
 
         if((data_width % 8) != 0):
             raise Exception('data_width must be multiple of byte,{} not supported').format(data_width)

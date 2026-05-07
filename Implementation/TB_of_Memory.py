@@ -9,6 +9,7 @@ sys = py4hw.HWSystem()
 Interface = MemoryInterface(sys,'port0',8,16)
 
 Module = Memory(sys,'Memory',8,16,Interface)
+
 #read
 #read_data
 #address

@@ -32,10 +32,13 @@ I = 7
 # R28 Y-register Low Byte
 # R29 Y-register High Byte
 # R30 Z-register Low Byte 
-# R31 Z-register High Byte 
+# R31 Z-register High Byte
+ 
+# interupt wires to add: INT0, INT1, PCINT0, PCINT1, PCINT2, WDT, TIMER2 COMPA, TIMER2 COMPB, TIMER2 OVF, TIMER1 CAPT, TIMER1 COMPA, TIMER1 COMPB, TIMER1 OVF, TIMER0 COMPA, TIMER0 COMPB, TIMER0 OVF, SPI/STC , USART/RX , USART/UDRE , USART/TX , ADC , EE READY , ANALOG COMP, TWI, SPM READY.
+ 
 
 class SingleCycleATmega328P(py4hw.Logic):
-    def __init__(self,parent, name:str , memory:MemoryInterface):
+    def __init__(self,parent, name:str , memory:MemoryInterface):#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY):
         super().__init__(parent,name)
 
         self.mem = self.addInterfaceSource('memory',memory)
@@ -90,10 +93,200 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.WDTCSR = 0
         self.WDTCSR_addr_LS = 0x60
 
+        #SPMCSR - Store Program Memory Control and Status Register
+        SPMCSR = 0 
+        SPMCSR_addr_IO = 0x37
+        SPMCSR_addr_LS = 0x57
+
+        #interrutpts
+        #self.INT0 = self.addIn('INT0',INT0)
+        #self.INT1 = self.addIn('INT1',INT1)
+        #self.PCINT0 = self.addIn('PCINT0',PCINT0)
+        #self.PCINT1 = self.addIn('PCINT1',PCINT1)
+        #self.PCINT2 = self.addIn('PCINT2',PCINT2)
+        #self.WDT = self.addIn('WDT',WDT)
+        #self.TIMER2_COMPA = self.addIn('TIMER2_COMPA',TIMER2_COMPA)
+        #self.TIMER2_COMPB = self.addIn('TIMER2_COMPB',TIMER2_COMPB)
+        #self.TIMER2_OVF = self.addIn('TIMER2_OVF',TIMER2_OVF)
+        #self.TIMER1_CAPT = self.addIn('TIMER1_CAPT',TIMER1_CAPT)
+        #self.TIMER1_COMPA = self.addIn('TIMER1_COMPA',TIMER1_COMPA)
+        #self.TIMER1_COMPB = self.addIn('TIMER1_COMPB',TIMER1_COMPB)
+        #self.TIMER1_OVF = self.addIn('TIMER1_OVF',TIMER1_OVF)
+        #self.TIMER0_COMPA = self.addIn('TIMER0_COMPA',TIMER0_COMPA)
+        #self.TIMER0_COMPB = self.addIn('TIMER0_COMPB',TIMER0_COMPB)
+        #self.TIMER0_OVF = self.addIn('TIMER0_OVF',TIMER0_OVF)
+        #self.SPI_STC = self.addIn('SPI_STC',SPI_STC)
+        #self.USART_RX = self.addIn('USART_RX',USART_RX)
+        #self.USART_UDRE = self.addIn('USART_UDRE',USART_UDRE)
+        #self.USART_TX = self.addIn('USART_TX',USART_TX)
+        #self.ADC = self.addIn('ADC',ADC)
+        #self.EE_READY = self.addIn('EE_READY',EE_READY)
+        #self.ANALOG_COMP = self.addIn('ANALOG_COMP',ANALOG_COMP)
+        #self.TWI = self.addIn('TWI',TWI)
+        #self.SPM_READY = self.addIn('SPM_READY',SPM_READY)
+
+        
+
 
     def clock(self):
         self.fetchIns()
         self.execute()
+
+
+#    def HandleInterupts(self):
+
+#        if self.INT0.get() == 1:
+            ## save the current pc position to the stack 
+
+            ## go to the interrupt vector
+#            self.pc = 0x002 
+
+#        if self.INT1.get() == 1: 
+
+#            self.pc = 0x004
+
+#        if self.PCINT0.get() == 1: 
+
+#            self.pc = 0x006
+
+#        if self.PCINT1.get() == 1:
+
+#            self.pc = 0x008
+
+#        if self.PCINT2.get() == 1:
+
+#            self.pc = 0x00A
+
+#        if self.WDT.get() == 1:
+
+#            self.pc = 0x00C
+
+#        if self.TIMER2_COMPA.get() == 1:
+
+#            self.pc = 0x00E
+
+#        if self.TIMER2_COMPB.get() == 1:
+
+#            self.pc = 0x010
+
+#        if self.TIMER2_OVF.get() == 1: 
+
+#           self.pc = 0x012
+
+#        if self.TIMER1_CAPT.get() == 1:
+
+#            self.pc = 0x014
+
+#        if self.TIMER1_COMPA.get() == 1: 
+
+#            self.pc = 0x016
+
+#        if self.TIMER1_COMPB.get() == 1: 
+
+#            self.pc = 0x018
+
+#        if self.TIMER1_OVF.get() == 1: 
+
+#            self.pc = 0x01A
+
+#        if self.TIMER0_COMPA.get() == 1: 
+
+#            self.pc = 0x01C
+
+#        if self.TIMER0_COMPB.get() == 1:
+
+#            self.pc = 0x01E
+
+#        if self.TIMER0_OVF.get() == 1:
+
+#            self.pc = 0x020
+
+#        if self.SPI_STC.get() == 1:
+
+#            self.pc = 0x022
+
+#        if self.USART_RX.get() == 1:
+        
+#            self.pc = 0x24
+
+#        if self.USART_UDRE.get() == 1:
+
+#            self.pc = 0x026
+
+#        if self.USART_TX.get() == 1:
+
+#            self.pc = 0x028
+#        if self.ADC.get() == 1:
+
+#            self.pc = 0x2A
+#        if self.EE_READY.get() == 1:
+
+#            self.pc = 0x2C
+#        if self.ANALOG_COMP.get() == 1:
+
+#            self.pc = 0x2E
+#        if self.TWI.get() == 1:
+
+#            self.pc = 0x030
+#        if self.SPM_READY.get() == 1: 
+
+#            self.pc = 0x032
+
+
+
+    def writeToMemory(self,Rr,A,q):
+        self.A = A
+        self.Rr = Rr
+
+        #preparing write operation
+        if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+            self.mem.write.prepare(0)
+            self.mem.read.prepare(0) 
+        else:
+            self.mem.write.prepare(1)
+            self.mem.read.prepare(0)
+
+        if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+            #writing the first byte
+            self.mem.address.prepare(self.A+q)
+            self.mem.write_data.prepare(self.reg[self.Rd])  
+            self.databyteNb = 1 
+            print("byte 1")
+        elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
+            self.pc += 1
+            self.databyteNb = 0
+
+
+    def readFromMemory(self,Rd,A,q):
+        self.A = A
+        self.Rd = Rd
+        val = 0
+
+        if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+            self.mem.write.prepare(0)
+            self.mem.read.prepare(1)
+            self.mem.address.prepare(A)
+
+
+        elif (self.databyteNb == 0) and (self.mem.resp.get() == 1):
+            val = self.mem.read_data.get()
+            self.databyteNb = 1 
+            self.mem.write.prepare(0)
+            self.mem.read.prepare(0)
+            print("byte 1")
+
+
+        elif (self.databyteNb == 2) and (self.mem.resp.get() == 1):
+
+            print("low=",bin(self.low))
+            self.databyteNb = 0
+            print("byte 2")
+            self.K = (self.high<<8) | self.low
+            self.pc  = self.K
+            SP = ((self.SPH<<8) | (self.SPL))+2
+            self.SPH = (SP>>8)&0xFF
+            self.SPL = SP&0xFF
+
 
 
     def fetchIns(self):
@@ -430,7 +623,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc +=1
 
             case 'SER':
-                self.Rd = (self.ins>>4)&0b11
+                self.Rd = (self.ins>>4)&0b1111
                 self.reg[self.Rd] = 0xFF
 
                 self.pc +=1 
@@ -956,6 +1149,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print("ROR")
             ##case 'ASR':
 
+                self.pc += 1
+
             case 'SWAP':
                 self.Rd = (self.ins>>4)&11111
                 self.reg[self.Rd]= ((self.reg[self.Rd]>>4)&0xF) | ((self.reg[self.Rd]<<4)&0xF0)
@@ -1067,111 +1262,152 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'LDX': #X
                 self.Rd = (self.ins>>4)&0b11111 
                 X  = self.reg[26]|(self.reg[27]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
+
 
             case 'LDX+': #X+
                 self.Rd = (self.ins>>4)&0b11111
                 X = self.reg[26]|(self.reg[27]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
+                    X += 1 ##incrementing X
+                    self.reg[26] = X&0xFF 
+                    self.reg[27] = (X>>8)&0xFF
 
-                X += 1 ##incrementing X
-                self.reg[26] = X&0xFF 
-                self.reg[27] = (X>>8)&0xFF
+
 
             case 'LD-X': #-X
                 self.Rd = (self.ins>>4)&0b11111
                 X = self.reg[26]|(self.reg[27]<<8)
-                X -= 1 ##decrementing X
-                self.reg[26] = X&0xFF 
-                self.reg[27] = (X>>8)&0xFF
 
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    X -= 1 ##decrementing X
+                    self.reg[26] = X&0xFF 
+                    self.reg[27] = (X>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
 
 
             case 'LDY': #Y
                 self.Rd = (self.ins>>4)&0b11111
                 Y = self.reg[28]|(self.reg[29]<<8)
-                self.mem.address.prepare(Y)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'LDY+': #Y+
                 self.Rd = (self.ins>>4)&0b11111
                 Y = self.reg[28]|(self.reg[29]<<8)
-                self.mem.address.prepare(Y)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
-
-                Y += 1 ##incrementing Y
-                self.reg[28] = Y&0xFF 
-                self.reg[29] = (Y>>8)&0xFF
+                    self.databyteNb = 0
+                    Y += 1 ##incrementing Y
+                    self.reg[26] = Y&0xFF 
+                    self.reg[27] = (Y>>8)&0xFF
 
             case 'LD-Y': #-Y
                 self.Rd = (self.ins>>4)&0b11111
                 Y = self.reg[28]|(self.reg[29]<<8)
 
-                Y += 1 ##incrementing Y
-                self.reg[28] = Y&0xFF 
-                self.reg[29] = (Y>>8)&0xFF
 
-                self.mem.address.prepare(Y)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    Y -= 1 ##incrementing Y
+                    self.reg[26] = Y&0xFF 
+                    self.reg[27] = (Y>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
+
 
 
             case 'LDDY':#Y+q
@@ -1179,74 +1415,99 @@ class SingleCycleATmega328P(py4hw.Logic):
                 Y = self.reg[28]|(self.reg[29]<<8)
                 q = (self.ins&0b111)|(self.ins&0b11000>>6)|(self.ins&0b100000>>7)
                 
-                self.mem.address.prepare(Y+q)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y+q)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
                 
 
             case 'LDZ':#Z
                 self.Rd = (self.ins>>4)&0b11111
-                self.A = self.reg[30]|(self.reg[31]<<8) # A but it is a Z memory address
+                Z = self.reg[30]|(self.reg[31]<<8) # A but it is a Z memory address
 
-                self.mem.address.prepare(Z)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'LDZ+':#Z+
                 self.Rd = (self.ins>>4)&0b11111
                 Z = self.reg[28]|(self.reg[29]<<8)
-                self.mem.address.prepare(Z)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
-
-                Z += 1 ##incrementing Z
-                self.reg[28] = Z&0xFF 
-                self.reg[29] = (Z>>8)&0xFF
+                    self.databyteNb = 0
+                    Z += 1 ##incrementing Z
+                    self.reg[26] = Z&0xFF 
+                    self.reg[27] = (Z>>8)&0xFF
 
 
             case 'LD-Z':#–Z
                 self.Rd = (self.ins>>4)&0b11111
                 Z = self.reg[26]|(self.reg[27]<<8)
-                Z -= 1 ##decrementing Z
-                self.reg[26] = Z&0xFF 
-                self.reg[27] = (Z>>8)&0xFF
 
-                self.mem.address.prepare(Z)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
-                    self.reg[self.Rd] = self.mem.read_data.get()
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    Z -= 1 ##incrementing Z
+                    self.reg[26] = Z&0xFF 
+                    self.reg[27] = (Z>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'LDDZ':#Z+q  verify this implementation
                 self.Rd = (self.ins>>4)&0b11111
@@ -1282,156 +1543,244 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'STX':#X
                 self.Rr = (self.ins>>4)&0b11111
                 X = self.reg[26]|(self.reg[27]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[self.Rr])
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
 
             case 'STX+':#X+
                 self.Rr = (self.ins>>4)&0b11111
                 X = self.reg[26]|(self.reg[27]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.be.preapre(1) 
-                self.mem.write_data.prepare(self.reg[self.Rr]) # IMPORTANT  I have to check if this is a 2 cycle operation(ST) or 3 cycle 
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
-
-                x += 1 ##incrementing X
-                self.reg[28] = X&0xFF 
-                self.reg[29] = (X>>8)&0xFF
+                    self.databyteNb = 0
+                    X += 1 ##incrementing X
+                    self.reg[26] = X&0xFF 
+                    self.reg[27] = (X>>8)&0xFF
 
 
             case 'ST-X':#–X
                 self.Rr = (self.ins>>4)&0b11111
-                x -= 1 ##incrementing X
-                self.reg[27] = X&0xFF 
-                self.reg[28] = (X>>8)&0xFF
+                X = self.reg[26]|(self.reg[27]<<8)
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.write_data.prepare(self.reg[self.Rr])
-
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    X -= 1 ##decrementing X
+                    self.reg[26] = X&0xFF 
+                    self.reg[27] = (X>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(X)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'STY':#Y
                 self.Rr = (self.ins>>4)&0b11111
                 Y = self.reg[27]|(self.reg[28]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.write_data(self.reg[self.Rr])
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0 
 
 
             case 'STY+':#Y+
                 self.Rr = (self.ins>>4)&0b11111
                 Y = self.reg[28]|(self.reg[29]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[self.Rr])
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
-
-                Y += 1 ##incrementing Y
-                self.reg[28] = Y&0xFF 
-                self.reg[29] = (Y>>8)&0xFF
+                    self.databyteNb = 0
+                    Y += 1 ##incrementing Y
+                    self.reg[26] = Y&0xFF 
+                    self.reg[27] = (Y>>8)&0xFF
 
             case 'ST-Y':#–Y
                 self.Rr = (self.ins>>4)&0b11111
                 Y = self.reg[26]|(self.reg[27]<<8)
-                Y -= 1 ##incrementing Y
-                self.reg[28] = Y&0xFF 
-                self.reg[29] = (Y>>8)&0xFF
 
-                self.mem.address.prepare(Y)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[self.Rr])
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    Y -= 1 ##incrementing Y
+                    self.reg[26] = Y&0xFF 
+                    self.reg[27] = (Y>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(Y)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'STDY':#Y+q or STY
-                self.Rr = (self.ins>>4)&0b11111
+                self.Rd = (self.ins>>4)&0b11111
+                Y = self.reg[28]|(self.reg[29]<<8)
+                q = (self.ins&0b111)|(self.ins&0b11000>>6)|(self.ins&0b100000>>7)
+                
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Y+q)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
+                    self.pc += 1
+                    self.databyteNb = 0
 
 
             case 'STZ':#Z
                 self.Rr = (self.ins>>4)&0b11111
-                Y = self.reg[26]|(self.reg[27]<<8)
-                self.mem.address.prepare(X)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[self.Rr])
+                self.A = self.reg[30]|(self.reg[31]<<8) # A but it is a Z memory address
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'STZ+':#Z+
                 self.Rr = (self.ins>>4)&0b11111
                 Z = self.reg[30]|(self.reg[31]<<8)
-                self.mem.address.prepare(Z)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[self.Rr])
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
+                    Z += 1 ##incrementing Z
+                    self.reg[26] = Z&0xFF 
+                    self.reg[27] = (Z>>8)&0xFF
 
             case 'ST-Z':#–Z
                 self.Rr = (self.ins>>4)&0b11111
                 Z = self.reg[30]|(self.reg[31]<<8)
-                self.mem.address.prepare(Z)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.write_data(self.reg[self.Rr])
 
-                if self.next_cycle == True: ## this is to wait a cycle for the data to be ready
+                #preparing write operation
+                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0) 
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    Z -= 1 ##incrementing Z
+                    self.reg[26] = Z&0xFF 
+                    self.reg[27] = (Z>>8)&0xFF
+                    #writing the first byte
+                    self.mem.address.prepare(Z)
+                    self.mem.write_data.prepare(self.reg[self.Rd])  
+                    self.databyteNb = 1 
+                    print("byte 1")
+                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
                     self.pc += 1
-                    self.next_cycle = False 
-                else: 
-                    self.next_cycle = True 
+                    self.databyteNb = 0
 
             case 'STDZ':#Z+q or STZ
                 self.Rr = (self.ins>>4)&0b11111
@@ -1543,48 +1892,43 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc+=1
             case 'PUSH':
-                d =  (self.ins>>4)&11111
+                self.Rr = (self.ins>>4)&11111
                 SP = (self.SPH<<8) | (self.SPL&0xF)
-                self.mem.address.prepare(SP)
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                self.mem.read.be(1)
-                self.mem.write_data(self.reg[d]) ## writing to the stack(ram) the value 
-                SP -= 1
-                
-                self.SPH = SP&0xF0
-                self.SPL = SP&0xF
-                self.pc+=1
+                ##writing to external peripheral
+                if self.databyteNb == 1 :
+                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0)
+                else:
+                    self.mem.write.prepare(1)
+                    self.mem.read.prepare(0)
+
+                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
+                    self.mem.address.prepare(SP)
+                    self.mem.write_data.prepare(self.reg[self.Rr])
+                    self.databyteNb = 1
+                    print("byte 1")
+                elif ((self.databyteNb == 1) and (self.mem.resp.get() == 1)):
+                    self.pc += 1
+                    self.databyteNb = 0
+                    SP += 1
+                    self.SPH = (SP>>8)&0xFF
+                    self.SPL = SP&0xFF
 
             case 'POP':
-                d =  (self.ins>>4)&11111
-
+                self.Rr = (self.ins>>4)&11111
                 SP = (self.SPH<<8) | (self.SPL&0xF)
-                self.mem.address.prepare(SP)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.mem.read.be(1)
-                self.reg[d] = self.mem.read_data.get() #verifi that it is correct
-                
-                SP += 1
-                self.SPH = SP&0xF0
-                self.SPL = SP&0xF
-                self.pc+=1
+
 
             case 'NOP':
-                self.pc += 1
-
-                  
+                self.pc += 1 
             case 'SLEEP':
                 ##activation of SLEEP MODE
                 self.pc += 1
             case 'WDR' :
                 ## Watchdog Reset
                 self.pc +=1
-
             case 'BREAK' : 
                 ## Sould enter debug mode
                 self.pc += 1
-
             case 'invalid': #basicaly a nop
                 self.pc += 1

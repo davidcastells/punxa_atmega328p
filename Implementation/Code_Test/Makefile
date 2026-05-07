@@ -14,3 +14,7 @@ clean:
 	-rm main.hex
 	-rm main.lss
 	-rm main.elf
+
+D:
+	avr-gcc -mmcu=atmega328p -nostartfiles -o INSTRUTION_TEST.elf INSTRUTION_TEST.S
+	avr-objcopy -j .text -j .data -O ihex INSTRUTION_TEST.elf INSTRUTION_TEST.hex
