@@ -217,28 +217,28 @@ mem = MemoryInterface(sys,'port0',8,16)
 
 def verify_instruction_value (instruction_counter_val):
     everything_ok = True
-    error_Message = 'NULL'
+    error_Message = ''
 
     #test registers
     for i in range(32):
         if CPU.reg[i] != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i]:
-            error_Message = "reg-{v} wrong value {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i])
+            error_Message = error_Message +"reg-{v} {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i],E=CPU.reg[i])
             everything_ok = False
     
     #test of SREG
     if CPU.SREG != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][31]:
-        error_Message = "SREG wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][31])
+        error_Message = error_Message + "SREG {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][31],E=CPU.SREG)
         everything_ok = False
 
     #test of pc
     if CPU.pc != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32]:
-        error_Message = "PC wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32])
+        error_Message =  error_Message + "PC {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32],E=CPU.pc)
         everything_ok = False
 
     #test of sp 
     SP = ((CPU.SPH<<8) | (CPU.SPL))
     if SP != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33]:
-        error_Message = "SP wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33])
+        error_Message =  error_Message + "SP {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33],E = SP)
         everything_ok = False
 
 
@@ -427,11 +427,23 @@ if Instruction_test == True:
             for i in range(len(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)):
                 sys.getSimulator().clk(1)
                 #testing if the output is correct
+                print(CPU.SREG)
                 everything_ok,error_Message = verify_instruction_value(instruction_counter)
                 instruction_counter+=1
                 appds = (everything_ok,error_Message) 
                 PASS_OR_FAIL_LIST.append(appds)
 
+            if os.path.exists("RamMemoryDump.txt"):
+                os.remove("RamMemoryDump.txt")
+
+            ## CPU Flash memory dump  
+            dump = open("RamMemoryDump.txt", "a")
+            #dump with instrucions decoded. #CALL and JUMP are 32bits 
+            for i in range(0,len(RAM.values)):
+                val = RAM.values[i]
+                dump.write("{0:>08b} : {val1} \n".format(val,val1 = val))
+
+            dump.close()
 
             print(PASS_OR_FAIL_LIST)
 

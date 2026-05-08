@@ -583,7 +583,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.testV(self.reg[self.Rd],self.reg[self.Rr],self.res)
                 self.testS()
 
-                self.reg[self.Rd] =  self.res 
+                self.reg[self.Rd] =  self.res&0xFF 
                 self.pc += 1
             case 'DEC':
                 self.Rd = ((self.ins>>4) & 0xF)
