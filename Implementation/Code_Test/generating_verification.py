@@ -68,7 +68,7 @@ with Progress() as p:
         C = driver.find_element("id","sreg-C")
 
         SREG = I.text + T.text + H.text + S.text + V.text + N.text + Z.text + C.text
-        print(SREG)
+        #print(SREG)
         SREG = int(SREG,2)
         REGISTER_VALUES_THIS_ITERATION.append(SREG)
 
@@ -91,7 +91,7 @@ with Progress() as p:
 
         lines_instruction = driver.find_element("id","pmem-line-{}".format(i%8))
 
-        INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(lines_instruction.text)
+        #INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(lines_instruction.text)
         p.update(t,advance=1)
         #print(lines_instruction.text)
         if lines_instruction.text == 'NOP':

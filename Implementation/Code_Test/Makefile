@@ -16,5 +16,5 @@ clean:
 	-rm main.elf
 
 D:
-	avr-gcc -mmcu=atmega328p -nostartfiles -o INSTRUTION_TEST.elf INSTRUTION_TEST.S
-	avr-objcopy -j .text -j .data -O ihex INSTRUTION_TEST.elf INSTRUTION_TEST.hex
+	avr-gcc -mmcu=atmega328p -nostartfiles -o INSTRUCTION_TEST.elf INSTRUCTION_TEST.S
+	avr-objcopy -j .text -j .data -O ihex INSTRUCTION_TEST.elf INSTRUCTION_TEST.hex

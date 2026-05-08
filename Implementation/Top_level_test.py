@@ -83,7 +83,7 @@ INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = []
 
 #Parameters for the test bench 
 
-Verbose = True
+Verbose = False
 #while Verbose == 7:
 #    print("Verbose? Y/N")
 #    responce = input()
@@ -121,7 +121,7 @@ Arduino_Code_Test = False
 #    elif (responce == 'N') or (responce == 'n'):
 #        Arduino_Code_Test = False 
 
-Line_by_Line = True
+Line_by_Line = False
 #if (Instruction_test == True) or (Arduino_Code_Test == True): 
 #    while Line_by_Line == 7:
 #        print("Execute line By line ? Y/N")
@@ -217,26 +217,32 @@ mem = MemoryInterface(sys,'port0',8,16)
 
 def verify_instruction_value (instruction_counter_val):
     everything_ok = True
+    error_Message = 'NULL'
 
     #test registers
     for i in range(32):
         if CPU.reg[i] != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i]:
+            error_Message = "reg-{v} wrong value {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i])
             everything_ok = False
     
     #test of SREG
-    if CPU.SREG != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32]:
+    if CPU.SREG != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][31]:
+        error_Message = "SREG wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][31])
         everything_ok = False
 
     #test of pc
-    if CPU.pc != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33]:
+    if CPU.pc != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32]:
+        error_Message = "PC wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][32])
         everything_ok = False
 
     #test of sp 
     SP = ((CPU.SPH<<8) | (CPU.SPL))
-    if SP != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][34]:
+    if SP != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33]:
+        error_Message = "SP wrong value expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33])
         everything_ok = False
 
-    return everything_ok 
+
+    return everything_ok, error_Message
 
 
 CPU = SingleCycleATmega328P(sys,'CPU',mem)#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY)
@@ -257,13 +263,15 @@ everything_ok = True
 #load instruction test to memory 
 if Instruction_test == True:
 
-    with open('Numeric_data.txt','r') as file:
-        INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = file.readlines()
-        INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = [ast.literal_eval(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.rstrip('\n')) for i in range(len(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES))]
-
+    with open('Code_Test/EXPECTED_REGISTER_VALUES.txt','r') as file:
+        for line in file:
+            data_list = ast.literal_eval(line.strip())
+            clean_list = [int(item) for item in data_list]
+            INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(clean_list)
+    #print(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)
     #loading the test code
     memory_position = 0
-    with open('./Code_Test/INSTRUTION_TEST.hex','rb') as f:
+    with open('./Code_Test/INSTRUCTION_TEST.hex','rb') as f:
         while 1 :
             start_Code = f.read(1)
             if not start_Code:
@@ -340,81 +348,92 @@ if Instruction_test == True:
         f.close()
         CPU.pc = 0
 
-
-        print("Hello \n n : next instruction \n r: ram memory dump \n f: flash memory dump \n e: exit ")
-            
-        print("Register State")
-        #print register state 
-        print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
-        for i in range(32):
-            print("R{index} : {value}".format(index = i, value = CPU.reg[i]),end=" ")
-        print("Pc:{value}".format(value = CPU.pc))
-        print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xF)))
-        print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format(value1 = CPU.opp,value2 = bin(CPU.ins), value3 = CPU.Rr, value4 = CPU.Rd,value5 = CPU.K, value6 = hex(CPU.A)))
-        #print("I:{I} T:{T} H:{H} S:{S} V:{V} N:{N} Z:{Z} C{C}".format(I = CPU.I))
-        print("SREG:{0:>08b}".format(CPU.SREG))
-        print("---------------------------------------------------------------")            
-        sys.getSimulator().clk(8) #Start of the test program
-        main_loop = True
-        while main_loop == True:
-
-
-            user_command = input()
-            if user_command ==  'f':
-                if os.path.exists("FlashMemoryDump.txt"):
-                    os.remove("FlashMemoryDump.txt")
-
-                ## CPU Flash memory dump  
-                dump = open("FlashMemoryDump.txt", "a")
-                #dump with instrucions decoded. #CALL and JUMP are 32bits 
-                for i in range(0,len(CPU.flash)):
-                    ins = CPU.flash[i] 
-                    if CPU.pc == (i-1): 
-                        dump.write(">{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
-                    else:
-                        dump.write("{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
-
-                dump.close()
-
-            elif user_command == 'r':
-                if os.path.exists("RamMemoryDump.txt"):
-                    os.remove("RamMemoryDump.txt")
-
-                ## CPU Flash memory dump  
-                dump = open("RamMemoryDump.txt", "a")
-                #dump with instrucions decoded. #CALL and JUMP are 32bits 
-                for i in range(0,len(RAM.values)):
-                    val = RAM.values[i]
-                    dump.write("{0:>08b} : {val1} \n".format(val,val1 = val))
-
-                dump.close()
+        if  Line_by_Line == True:
+            print("Hello \n n : next instruction \n r: ram memory dump \n f: flash memory dump \n e: exit ")
                 
-            elif user_command == 'n':        
+            print("Register State")
+            #print register state 
+            print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
+            for i in range(32):
+                print("R{index} : {value}".format(index = i, value = CPU.reg[i]),end=" ")
+            print("Pc:{value}".format(value = CPU.pc))
+            print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xF)))
+            print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format(value1 = CPU.opp,value2 = bin(CPU.ins), value3 = CPU.Rr, value4 = CPU.Rd,value5 = CPU.K, value6 = hex(CPU.A)))
+            #print("I:{I} T:{T} H:{H} S:{S} V:{V} N:{N} Z:{Z} C{C}".format(I = CPU.I))
+            print("SREG:{0:>08b}".format(CPU.SREG))
+            print("---------------------------------------------------------------")            
+            #sys.getSimulator().clk(8) 
+            main_loop = True
+            while main_loop == True:
+
+
+                user_command = input()
+                if user_command ==  'f':
+                    if os.path.exists("FlashMemoryDump.txt"):
+                        os.remove("FlashMemoryDump.txt")
+
+                    ## CPU Flash memory dump  
+                    dump = open("FlashMemoryDump.txt", "a")
+                    #dump with instrucions decoded. #CALL and JUMP are 32bits 
+                    for i in range(0,len(CPU.flash)):
+                        ins = CPU.flash[i] 
+                        if CPU.pc == (i-1): 
+                            dump.write(">{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+                        else:
+                            dump.write("{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+
+                    dump.close()
+
+                elif user_command == 'r':
+                    if os.path.exists("RamMemoryDump.txt"):
+                        os.remove("RamMemoryDump.txt")
+
+                    ## CPU Flash memory dump  
+                    dump = open("RamMemoryDump.txt", "a")
+                    #dump with instrucions decoded. #CALL and JUMP are 32bits 
+                    for i in range(0,len(RAM.values)):
+                        val = RAM.values[i]
+                        dump.write("{0:>08b} : {val1} \n".format(val,val1 = val))
+
+                    dump.close()
+                    
+                elif user_command == 'n':        
+                    sys.getSimulator().clk(1)
+                    print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
+                    for i in range(32):
+                        print("R{index}:{value}".format(index = i, value = CPU.reg[i]),end=" ")
+                    print("Pc:{value}".format(value = CPU.pc))
+                    print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xFF)))
+                    print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format( value1 = CPU.opp , value2 = bin(CPU.ins) , value3 = CPU.Rr , value4 = CPU.Rd ,value5 = CPU.K, value6 = hex(CPU.A)))
+                    print("SREG:{0:>08b}".format(CPU.SREG))
+
+                    #testing if the output is correct
+                    #everything_ok = verify_instruction_value(instruction_counter)
+                    #instruction_counter+=1
+                    #if everything_ok == True:
+                    #    PASS_OR_FAIL_LIST.append("PASS")
+                    #else:
+                    #    PASS_OR_FAIL_LIST.append("FAIL")
+                    
+
+                    print("---------------------------------------------------------------")
+                
+                elif user_command == 'e':#to exit
+                    main_loop = False
+                    #for i in range(len(PASS_OR_FAIL_LIST)):
+                    #    print(PASS_OR_FAIL_LIST[i])
+        else:
+            instruction_counter = 0
+            for i in range(len(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)):
                 sys.getSimulator().clk(1)
-                print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
-                for i in range(32):
-                    print("R{index}:{value}".format(index = i, value = CPU.reg[i]),end=" ")
-                print("Pc:{value}".format(value = CPU.pc))
-                print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xFF)))
-                print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format( value1 = CPU.opp , value2 = bin(CPU.ins) , value3 = CPU.Rr , value4 = CPU.Rd ,value5 = CPU.K, value6 = hex(CPU.A)))
-                print("SREG:{0:>08b}".format(CPU.SREG))
-
                 #testing if the output is correct
-                #everything_ok = verify_instruction_value(instruction_counter)
-                #instruction_counter+=1
-                #if everything_ok == True:
-                #    PASS_OR_FAIL_LIST.append("PASS")
-                #else:
-                #    PASS_OR_FAIL_LIST.append("FAIL")
-                
+                everything_ok,error_Message = verify_instruction_value(instruction_counter)
+                instruction_counter+=1
+                appds = (everything_ok,error_Message) 
+                PASS_OR_FAIL_LIST.append(appds)
 
-                print("---------------------------------------------------------------")
-            
-            elif user_command == 'e':#to exit
-                main_loop = False
-                #for i in range(len(PASS_OR_FAIL_LIST)):
-                #    print(PASS_OR_FAIL_LIST[i])
 
+            print(PASS_OR_FAIL_LIST)
 
 if Arduino_Code_Test == True: 
     ## loading hex file of arduino test code to memory 
