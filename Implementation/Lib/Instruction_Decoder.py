@@ -3,7 +3,7 @@
 #Instructions in the data sheet 131
 #Acounted for 131
 #Decoded by the function 131 
-#Instructions found in test 98 + CBR + BRLO + BRCC + SBR + TST +CLR +LPM+ 16(for the SREG clear and set instructions) Total: 122 ,missing 9 instructions
+#Instructions found in test 98 + CBR + BRLO +ROL + BRCC + SBR + TST + CLR +LPM+ 16(for the SREG clear and set instructions) Total: 123 ,missing 8 instructions
 #SBR and CBR Fake instruction
 #SER is an alias for LDI Rd,0xFF
 #          #|15|14|13|12|11|10| 9| 8| 7| 6| 5| 4| 3| 2| 1| 0|
@@ -33,6 +33,8 @@
 
 #20        #| OP                 | D  D  D  D  D|OP| B  B  B| 'SBRC' 'SBRS'
 
+
+MEMORY_INSTRUCTIONS = ['POP','PUSH','LDX','LDX+','LD-X','LDY','LDY+','LD-Y','LDZ','LD+Z','LD-Z','STX','STX+','ST-X','STY','STY+','ST-Y','STZ','STZ+','ST-Z']
 
  # I need to investigate the spm instruction
 
@@ -134,7 +136,7 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b10010010001: return 'STZ+'
         case 0b10010010010: return 'ST-Z'
 
-        case 0b10010000111: return 'ELPM'
+#        case 0b10010000111: return 'ELPM'
         case 0b10010000100: return 'LPMZ'
         case 0b10010000101: return 'LPMZ+'
 

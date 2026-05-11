@@ -7,7 +7,7 @@ import ast
 
 PASS_OR_FAIL_LIST =[]
 INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = []
-
+INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 #INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = [] # {address} {Value} 
 
 #  +-----+    +-----+     +-----+
@@ -92,7 +92,7 @@ Verbose = False
 #    elif (responce == 'N') or (responce == 'n'):
 #        Verbose = False 
 
-Show_Schematic = True
+Show_Schematic = False
 #while Show_Schematic == 7:
 #    print("Show Schematic? Y/N")
 #    responce = input()
@@ -219,8 +219,9 @@ def verify_instruction_value (instruction_counter_val):
     everything_ok = True
     error_Message = ''
 
+
     #test registers
-    for i in range(32):
+    for i in range(31):
         if CPU.reg[i] != INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i]:
             error_Message = error_Message +"reg-{v} {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][i],E=CPU.reg[i])
             everything_ok = False
@@ -241,6 +242,14 @@ def verify_instruction_value (instruction_counter_val):
         error_Message =  error_Message + "SP {E} expected: {C}".format(v=i,C=INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instruction_counter_val][33],E = SP)
         everything_ok = False
 
+    #verifing ram 
+
+    for address,val in INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES[instruction_counter_val].items():
+        if RAM.values[int(address)-256] != int(val):
+            error_Message = error_Message + "Address {address1} {val1} expected: {val2}".format(address1 = address , val1= RAM.values[address-256], val2=val)
+            everything_ok = False
+
+    #test of memory
 
     return everything_ok, error_Message
 
@@ -260,14 +269,18 @@ RAM = Memory(sys,'mem',8,16,mem)
 instruction_counter = 0
 everything_ok = True
 
+
 #load instruction test to memory 
 if Instruction_test == True:
 
     with open('Code_Test/EXPECTED_REGISTER_VALUES.txt','r') as file:
         for line in file:
             data_list = ast.literal_eval(line.strip())
-            clean_list = [int(item) for item in data_list]
+            clean_list = [int(item) for item in data_list[0]]
+            print(type(data_list[2]))
+            clean_dict = {int(key):int(val) for key,val in data_list[2].items()}
             INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(clean_list)
+            INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES.append(clean_dict)
     #print(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)
     #loading the test code
     memory_position = 0
@@ -362,10 +375,28 @@ if Instruction_test == True:
             #print("I:{I} T:{T} H:{H} S:{S} V:{V} N:{N} Z:{Z} C{C}".format(I = CPU.I))
             print("SREG:{0:>08b}".format(CPU.SREG))
             print("---------------------------------------------------------------")            
-            #sys.getSimulator().clk(8) 
+            
+            #sys.getSimulator().clk(366) # memeory test part of the program 
+
             main_loop = True
             while main_loop == True:
 
+            #if user_command == 'r':
+                if os.path.exists("RamMemoryDump.txt"):
+                    os.remove("RamMemoryDump.txt")
+
+                ## CPU Flash memory dump  
+                dump = open("RamMemoryDump.txt", "a")
+                #dump with instrucions decoded. #CALL and JUMP are 32bits 
+                val = 0xFF 
+                for i in range(0,len(RAM.values)):
+                    val = RAM.values[i]
+                    if val != 0:
+                        dump.write("{address} >{0:>08b} : {val1} \n".format(val,val1 = val,address = (i+0x100)))
+                    else: 
+                        dump.write("{address} {0:>08b} : {val1} \n".format(val,val1 = val,address = (i+0x100)))
+
+                dump.close()
 
                 user_command = input()
                 if user_command ==  'f':
@@ -384,18 +415,8 @@ if Instruction_test == True:
 
                     dump.close()
 
-                elif user_command == 'r':
-                    if os.path.exists("RamMemoryDump.txt"):
-                        os.remove("RamMemoryDump.txt")
 
-                    ## CPU Flash memory dump  
-                    dump = open("RamMemoryDump.txt", "a")
-                    #dump with instrucions decoded. #CALL and JUMP are 32bits 
-                    for i in range(0,len(RAM.values)):
-                        val = RAM.values[i]
-                        dump.write("{0:>08b} : {val1} \n".format(val,val1 = val))
 
-                    dump.close()
                     
                 elif user_command == 'n':        
                     sys.getSimulator().clk(1)
@@ -423,15 +444,23 @@ if Instruction_test == True:
                     #for i in range(len(PASS_OR_FAIL_LIST)):
                     #    print(PASS_OR_FAIL_LIST[i])
         else:
+            if os.path.exists("Test_resuslts.txt"):
+                os.remove("Test_resuslts.txt")
+            results = open("Test_resuslts.txt","a")
             instruction_counter = 0
             for i in range(len(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)):
                 sys.getSimulator().clk(1)
                 #testing if the output is correct
-                print(CPU.SREG)
+                print("instruction",ins_to_str(CPU.flash[instruction_counter]),end='')
+                
                 everything_ok,error_Message = verify_instruction_value(instruction_counter)
-                instruction_counter+=1
                 appds = (everything_ok,error_Message) 
+                print(appds)
+                results.write("instruction:{ins} {res} \n".format(ins = ins_to_str(CPU.flash[instruction_counter]), res = appds ))
                 PASS_OR_FAIL_LIST.append(appds)
+                instruction_counter+=1
+            results.close()
+
 
             if os.path.exists("RamMemoryDump.txt"):
                 os.remove("RamMemoryDump.txt")
@@ -445,7 +474,22 @@ if Instruction_test == True:
 
             dump.close()
 
-            print(PASS_OR_FAIL_LIST)
+            if os.path.exists("FlashMemoryDump.txt"):
+                os.remove("FlashMemoryDump.txt")
+
+            ## CPU Flash memory dump  
+            dump = open("FlashMemoryDump.txt", "a")
+            #dump with instrucions decoded. #CALL and JUMP are 32bits 
+            for i in range(0,len(CPU.flash)):
+                ins = CPU.flash[i] 
+                if CPU.pc == (i-1): 
+                    dump.write(">{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+                else:
+                    dump.write("{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+
+            dump.close()
+
+
 
 if Arduino_Code_Test == True: 
     ## loading hex file of arduino test code to memory 
@@ -588,7 +632,3 @@ if Arduino_Code_Test == True:
             
             elif user_command == 'e':#to exit
                 main_loop = False
-
-
-
-

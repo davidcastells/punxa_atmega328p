@@ -25,8 +25,25 @@ Compile_button = driver.find_element(by=By.CSS_SELECTOR, value=".button-assemble
 Step_button = driver.find_element(by=By.CSS_SELECTOR, value=".button-step")
 Base_button = driver.find_element(by=By.ID, value="button_base")
 
+#Memory table parsing
+
+Bottom_button = driver.find_element(by=By.CSS_SELECTOR,value=".button-dmem-bottom")
+Top_button = driver.find_element(by=By.CSS_SELECTOR,value=".button-dmem-top")
+Up_button = driver.find_element(by=By.CSS_SELECTOR,value=".button-dmem-up")
+Down_button = driver.find_element(by=By.CSS_SELECTOR,value=".button-dmem-down")
+Ascii_button = driver.find_element(by=By.ID, value = "button-ascii")
+
+
+Mem_table_rows = len(driver.find_elements(By.XPATH,"/html/body/div[1]/div[4]/div[2]/div[2]/div[2]/table/tbody/tr"))
+Mem_table_cols = len(driver.find_elements(By.XPATH,"/html/body/div[1]/div[4]/div[2]/div[2]/div[2]/table/tbody/tr[1]/td"))
+
+print(Mem_table_rows)
+print(Mem_table_cols)
+
+
+
 program_box.clear()
-file = open('INSTRUTION_TEST.S','r') 
+file = open('INSTRUCTION_TEST.S','r') 
 program_text = file.read()
 file.seek(0,0)
 Steps = len(file.readlines())
@@ -47,11 +64,17 @@ INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = [#{R0 to R31} {STREG} {PROGRAM C
 ]
 
 
+
+INSTRUCTIONS_THAT_INTERACT_WITH_MEMORY = ["LD ","ST ","STD ","STS ","LDD ","PUSH ","POP "]
+
 with Progress() as p:
     t = p.add_task("Executing step by step...", total=Steps)
+    instructions_executed = 0 
     loop = True
     while loop:
+        intermediary_list = []
         REGISTER_VALUES_THIS_ITERATION = []
+        mem_address_vals = {}
         Step_button.click()
 
         for i in range(31):
@@ -84,17 +107,47 @@ with Progress() as p:
         #REGISTER_VALUES_THIS_ITERATION.append(Y.text)
         #REGISTER_VALUES_THIS_ITERATION.append(Z.text)
 
+
         #I don't take in to account the writing to memory operations
 
-        print(REGISTER_VALUES_THIS_ITERATION)
-        INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(REGISTER_VALUES_THIS_ITERATION)
+        #print(REGISTER_VALUES_THIS_ITERATION)
+        intermediary_list.append(REGISTER_VALUES_THIS_ITERATION)
 
-        lines_instruction = driver.find_element("id","pmem-line-{}".format(i%8))
+        instruction = driver.find_element(By.ID,"pmem-line-{val}".format(val = (instructions_executed%8)))
+        #print(lines_instruction)
+        instruction = instruction.text
+        #print(instruction)
+        intermediary_list.append(instruction)
+        test = -1
+        for item in INSTRUCTIONS_THAT_INTERACT_WITH_MEMORY:
+            test = instruction.find(item)
+            if test != -1:
+                break 
+        
+        if test != -1:
+            Top_button.click()
+            #Optaning data from memory
+            for tables in range(32):
+                for r in range(1,Mem_table_rows+1):
+                    row = driver.find_element(By.XPATH,"/html/body/div[1]/div[4]/div[2]/div[2]/div[2]/table/tbody/tr["+str(r)+"]").text
+                    elements = row.split("\n")
+                    address_start = int(elements[0])
+                    for g in range(1,Mem_table_cols+1):
+                        #value = driver.find_element(By.XPATH,"/html/body/div[1]/div[4]/div[2]/div[2]/div[2]/table/tbody/tr["+str(r)+"]/td["+str(p)+"]").text
+                        value = int(elements[g])
+                        if value != 0:
+                            mem_address_vals[address_start+g] = value
+                Down_button.click()
+  
 
-        #INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(lines_instruction.text)
+        intermediary_list.append(mem_address_vals)
+        INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES.append(intermediary_list)
+        #print(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES[instructions_executed])
+        instructions_executed += 1
+
         p.update(t,advance=1)
         #print(lines_instruction.text)
-        if lines_instruction.text == 'NOP':
+        if instruction.find("NOP" ) != -1:
             loop = False
 
 #Writing INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES to file 

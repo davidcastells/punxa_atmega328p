@@ -43,8 +43,8 @@ class Memory(Logic):
         print("Address:",address)
 
         if (address >= self.startAddress) and (address <= self.stopAddress):
-            address = address -0x0100 -1
-            #print("opperation")
+            address = address -0x0100
+            print("opperation")
             #print((self.port0.read.get() == 1) and (self.port0.write.get() == 0))
             #print((self.port0.read.get() == 1) and (self.port0.write.get() == 1))
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
@@ -61,7 +61,6 @@ class Memory(Logic):
                 self.port0.resp.prepare(0)
         else:
             self.port0.resp.prepare(0)
-
 
 
 class PersistentMemory(Logic):
@@ -92,9 +91,6 @@ class PersistentMemory(Logic):
                 if((be & 0x1) != 0):
                     self.writeByte(address +i, value & 0xFF)
             
-
-
-
 
 class ProgramMemory(py4hw.Logic):
     def __init__(self,parent,name,ADRESS,DATA_IN,DATA_OUT, Write_Enable): #RW = 0 then R else W
