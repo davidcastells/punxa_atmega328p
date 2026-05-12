@@ -2286,7 +2286,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
             case 'STX':#X
                 self.Rr = (self.ins>>4)&0x1F
-                self.A = self.reg[26]|(self.reg[27]<<8) #X adress
+                self.A = (self.reg[26]&0xFF)|((self.reg[27]&0xFF)<<8) #X adress
 
 
                 if self.databyteNb == 0:
@@ -2307,23 +2307,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     
 
 
-#                #preparing write operation
-#                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
-#                    self.mem.write.prepare(0)
-#                    self.mem.read.prepare(0) 
-#                else:
-#                    self.mem.write.prepare(1)
-#                    self.mem.read.prepare(0)
-#
-#                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-#                    #writing the first byte
-#                    self.mem.address.prepare(X)
-#                    self.mem.write_data.prepare(self.reg[self.Rd])  
-#                    self.databyteNb = 1 
-#                    print("byte 1")
-#                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-#                    self.pc += 1
-#                    self.databyteNb = 0
+
 
 
             case 'STX+':#X+
@@ -2352,23 +2336,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
 
-                #preparing write operation
-#                if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
-#                    self.mem.write.prepare(0)
-#                    self.mem.read.prepare(0) 
-#                else:
-#                    self.mem.write.prepare(1)
-#                    self.mem.read.prepare(0)
 
-#                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-#                    #writing the first byte
-#                    self.mem.address.prepare(X)
-#                    self.mem.write_data.prepare(self.reg[self.Rd])  
-#                    self.databyteNb = 1 
-#                    print("byte 1")
-#                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-#                    self.pc += 1
-#                    self.databyteNb = 0
                     
 
 
@@ -2701,59 +2669,65 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.Rr = (self.ins>>4)&0b11111
                 self.A =  self.flash[self.pc+1]
 
-                ##writing to external peripheral
-                if self.databyteNb == 1 :
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0)
-                else:
+                if self.databyteNb == 0:
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
-                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
                     self.mem.address.prepare(self.A)
-                    self.mem.write_data.prepare(self.reg[self.Rr])
+                    self.mem.write_data.prepare(self.reg[self.Rd])
+                    
                     self.databyteNb = 1
-                    print("byte 1")
-                elif ((self.databyteNb == 1) and (self.mem.resp.get() == 1)):
-                    self.pc +=2
-                    self.databyteNb
+
+                else:
+
+                    self.mem.write.prepare(0)
+                    self.mem.write.prepare(0)
+
+                    self.pc += 2
+                    self.databyteNb = 0
+
+
             case 'LPM': #R0 implied
                 self.A = self.reg[30]|(self.reg[31]<<8)
                 if(self.A&0b1 == 1 ):##high byte
-                    self.reg[0] = (self.flash[Z] & 0xFF00)>>8
+                    self.reg[1] = (self.flash[self.A] & 0xFF00)>>8
                 else: ## low byte 
-                    self.reg[0] = (self.flash[Z]&0xFF)
+                    self.reg[0] = (self.flash[self.A]&0xFF)
 
                 self.pc += 1 
             case 'LPMZ': #Z
-                self.Rd = (self.ins>>4)&0b11111
+                self.Rd = ((self.ins>>4)&0x1F)
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
-                if(self.A&0b1 == 1 ):##high byte
-                    self.reg[self.Rd] = (self.flash[Z] & 0xFF00)>>8
-                else: ## low byte 
-                    self.reg[self.Rd] = (self.flash[Z]&0xFF)
+                if(self.A<= len(self.flash)):
+                    if(self.A&0b1 == 1 ):##high byte
+                        self.reg[self.reg[0]] = (self.flash[self.A] & 0xFF00)>>8
+                    else: ## low byte 
+                        self.reg[self.reg[0]] = (self.flash[self.A]&0xFF)
 
                 self.pc += 1
             case 'LPMZ+': #Z+
-                self.Rd = (self.ins>>4)&0b11111
+                self.Rd = ((self.ins>>4)&0x1F) 
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
-                if(self.A&0b1 == 1 ):##high byte
-                    self.reg[self.Rd] = (self.flash[Z] & 0xFF00)>>8
-                else: ## low byte 
-                    self.reg[self.Rd] = (self.flash[Z]&0xFF)
+                if(self.A<= len(self.flash)-256):
+                    if(self.A&0b1 == 1 ):##high byte
+                        self.reg[self.Rd+1] = (self.flash[self.A] & 0xFF00)>>8
+                    else: ## low byte 
+                        self.reg[self.Rd] = (self.flash[self.A]&0xFF)
 
-                Z += 1 ##decrementing Z
-                self.reg[26] = Z&0xFF 
-                self.reg[27] = (Z>>8)&0xFF
+                self.A += 1 ##decrementing Z
+                self.reg[30] = self.A&0xFF 
+                self.reg[31] = (self.A>>8)&0xFF
+
+                self.pc+=1
             case 'SPM':
                 # must use SPMCSR
                 SELFPRGEN = self.SPMCSR & 0b1
                 if SELFPRGEN == 1 :
-                    Z = self.reg[30]|(self.reg[31]<<8)
+                    self.A = self.reg[30]|(self.reg[31]<<8)
 
-                    self.flash[Z] = self.reg[0]|(self.reg[1]<<8) #verifi the order of the registers
+                    self.flash[self.A] = self.reg[0]|(self.reg[1]<<8) #verifi the order of the registers
             
 
                 else:

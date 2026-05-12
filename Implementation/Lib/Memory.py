@@ -36,7 +36,7 @@ class Memory(Logic):
         self.port0 = self.addInterfaceSink('port',port)
         self.startAddress = 0x0100
         self.stopAddress = 0x08FF
-        self.values = [0]*(self.stopAddress-self.startAddress)
+        self.values = [0]*(10000)
 
     def clock(self):
         address = self.port0.address.get()

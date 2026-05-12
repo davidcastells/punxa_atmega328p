@@ -245,8 +245,10 @@ def verify_instruction_value (instruction_counter_val):
     #verifing ram 
 
     for address,val in INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES[instruction_counter_val].items():
-        if RAM.values[int(address)-256] != int(val):
-            error_Message = error_Message + "Address {address1} {val1} expected: {val2}".format(address1 = address , val1= RAM.values[address-256], val2=val)
+        #print(type(val),val)
+        #print(type(address),address)
+        if RAM.values[address] != int(val):
+            error_Message = error_Message + "Address {address1} {val1} expected: {val2}".format(address1 = address , val1= RAM.values[address], val2=val)
             everything_ok = False
 
     #test of memory
@@ -443,13 +445,20 @@ if Instruction_test == True:
                     main_loop = False
                     #for i in range(len(PASS_OR_FAIL_LIST)):
                     #    print(PASS_OR_FAIL_LIST[i])
+
         else:
             if os.path.exists("Test_resuslts.txt"):
                 os.remove("Test_resuslts.txt")
             results = open("Test_resuslts.txt","a")
             instruction_counter = 0
             for i in range(len(INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES)):
-                sys.getSimulator().clk(1)
+                past_pc = CPU.pc
+                while past_pc == CPU.pc:
+                    sys.getSimulator().clk(1)
+                    #print("CPU.pc:=",CPU.pc)
+                    #print("instruction",ins_to_str(CPU.flash[instruction_counter]))
+
+
                 #testing if the output is correct
                 print("instruction",ins_to_str(CPU.flash[instruction_counter]),end='')
                 
@@ -483,9 +492,9 @@ if Instruction_test == True:
             for i in range(0,len(CPU.flash)):
                 ins = CPU.flash[i] 
                 if CPU.pc == (i-1): 
-                    dump.write(">{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+                    dump.write("{addr} >{0:>016b} : {instr} \n".format(ins,addr = i,instr = ins_to_str(ins)))
                 else:
-                    dump.write("{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+                    dump.write("{addr} {0:>016b} : {instr} \n".format(ins,addr = i,instr = ins_to_str(ins)))
 
             dump.close()
 
