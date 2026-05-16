@@ -1,3 +1,8 @@
+
+# To use this file use the command python -i -m Test.Top_level_test.Top_level_test in the top directory of the project
+
+
+
 import py4hw
 import os
 from SingleCycle.runCycle import *
@@ -9,6 +14,9 @@ PASS_OR_FAIL_LIST =[]
 INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = []
 INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 #INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = [] # {address} {Value} 
+COMMANDS_LIST= ["Build_Hardware","Instruction_test","Arduino_Code_Test","list_commands","printState","runCycles","Load_program_to_memory","Flash_Memory_Dump"]
+
+
 
 #  +-----+    +-----+     +-----+
 #  | CPU |--C-| bus |--B--| mem |
@@ -34,6 +42,9 @@ INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 #             |     |      +-----------+
 #             |     |--T2--| 8bitTimer2|
 #             |     |      +-----------+
+#             |     |      +-----------+
+#             |     |--E--|   EEPROM   |
+#             |     |      +-----------+
 #             +-----+
 #  | start               | stop                | device        |
 #  | 0080 0000 0000 0000 | 0080 0000 FFFF FFFF | memory (2GB)  |
@@ -41,6 +52,7 @@ INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 #  | 0000 0000 0200 0000 | 0000 0000 0202 FFFF | CLINT         |
 #  | 0000 0000 0C00 0000 | 0000 0000 0C0F FFFF | PLIC          |
 #  | 0000 0000 0C00 0000 | 0000 0000 0C0F FFFF | GPIO          |
+
 
 
 
@@ -79,75 +91,17 @@ INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 # PIN32 PD2 (INT0/PCINT18)
 
 
+def Build_Hardware():
+    global CPU
+    global RAM
+    global sys
+    
+    sys = py4hw.HWSystem()
 
+    mem = MemoryInterface(sys,'port0',8,16)
 
-#Parameters for the test bench 
-
-Verbose = False
-#while Verbose == 7:
-#    print("Verbose? Y/N")
-#    responce = input()
-#    if (responce == 'Y') or (responce == 'y'):
-#        Verbose = True 
-#    elif (responce == 'N') or (responce == 'n'):
-#        Verbose = False 
-
-Show_Schematic = False
-#while Show_Schematic == 7:
-#    print("Show Schematic? Y/N")
-#    responce = input()
-#    if (responce == 'Y') or (responce == 'y'):
-#        Show_Schematic = True 
-#    elif (responce == 'N') or (responce == 'n'):
-#        Show_Schematic = False 
-
-#Loades Custom instructions in flash to test each instruction 
-Instruction_test = True
-#while Instruction_test == 7:
-#    print("Instruction Test? Y/N")
-#    responce = input()
-#    if (responce == 'Y') or (responce == 'y'):
-#        Instruction_test = True 
-#    elif (responce == 'N') or (responce == 'n'):
-#        Instruction_test = False 
-
-#Loads the hex file and executes the code 
-Arduino_Code_Test = False
-#while Arduino_Code_Test == 7:
-#    print("Arduino Code Test? Y/N")
-#    responce = input()
-#    if (responce == 'Y') or (responce == 'y'):
-#        Arduino_Code_Test = True 
-#    elif (responce == 'N') or (responce == 'n'):
-#        Arduino_Code_Test = False 
-
-Line_by_Line = False
-#if (Instruction_test == True) or (Arduino_Code_Test == True): 
-#    while Line_by_Line == 7:
-#        print("Execute line By line ? Y/N")
-#        responce = input()
-#        if (responce == 'Y') or (responce == 'y'):
-#            Line_by_Line = True 
-#        elif (responce == 'N') or (responce == 'n'):
-#            Line_by_Line = False 
-
-#if Arduino_Code_Test == True:
-#    print_periferal_registers = 7
-#    while print_periferal_registers == 7:
-#        print("Execute line By line ? Y/N")
-#        responce = input()
-#        if (responce == 'Y') or (responce == 'y'):
-#            print_periferal_registers = True 
-#        elif (responce == 'N') or (responce == 'n'):
-#            print_periferal_registers = False 
-
-
-sys = py4hw.HWSystem()
-
-mem = MemoryInterface(sys,'port0',8,16)
-
-
-
+    CPU = SingleCycleATmega328P(sys,'CPU',mem)#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY)
+    RAM = Ram_Memory(sys,'mem',8,16,mem)
 
 #port_C = MemoryInterface(sys,'port_C',8,16)
 #port_B = MemoryInterface(sys,'port_B',8,16)
@@ -215,6 +169,9 @@ mem = MemoryInterface(sys,'port0',8,16)
 #SIGNALS.append(TWI)
 #SIGNALS.append(SPM_READY)
 
+
+
+
 def verify_instruction_value (instruction_counter_val):
     everything_ok = True
     error_Message = ''
@@ -257,10 +214,140 @@ def verify_instruction_value (instruction_counter_val):
     #test of memory
 
     return everything_ok, error_Message
+def Load_program_to_memory(Test_File,Verbose=False):
+    file_path = ''
 
+    match Test_File:
 
-CPU = SingleCycleATmega328P(sys,'CPU',mem)#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY)
-RAM = Memory(sys,'mem',8,16,mem)
+        case 'INSTRUCTION_TEST' :
+            file_path = 'Test/Code_Test/INSTRUCTION_TEST.hex'
+            CPU.pc = 0
+        
+        case 'INSTRUCTION_TESTV2' :
+            file_path = 'Test/Code_Test/INSTRUCTION_TESTV2.hex'
+            CPU.pc = 0
+
+        case 'ARDUINO_TEST_PROGRAM' :
+            file_path = 'Test/Code_Test/ARDUINO_TEST_PROGRAM.hex'
+            CPU.pc = 0x3F00
+        
+
+    with open(file_path,'rb') as f:
+        while 1 :
+            start_Code = f.read(1)
+            if not start_Code:
+                break
+            start_Code = str(start_Code,'utf-8')
+            if Verbose == True :
+                print("start_code:",start_Code)
+            nbbytes = str(f.read(2),'utf-8')
+            if Verbose == True :
+                print("nbbytes:",nbbytes)
+            starting_address =  str(f.read(4),'utf-8')
+            if Verbose == True :
+                print("starting_address:",starting_address)
+            record_type = str(f.read(2),'utf-8')
+            if Verbose == True :
+                print("record_type:",record_type)
+            if record_type == "00": # To write only "Data Record"
+                memory_position = int(starting_address,16)//2
+
+                for i in range(int(nbbytes,16)//2): 
+                    byteLSB = str(f.read(2),'utf-8')  #there may be a problem between word adressis and byte adressis but I am willing to let it slide
+                    byteMSB = str(f.read(2),'utf-8')
+                    byte = byteMSB + byteLSB
+                    CPU.flash[memory_position] = int(byte,16)  #little or big 
+                    if Verbose == True :
+                        print("Flash:{flash} Mem_pos:{mem_pos} Index:{index} Val:{val}".format(flash=hex(CPU.flash[memory_position]),mem_pos=memory_position,index = i ,val = byte))   
+                    memory_position+=1
+
+                checksum = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("checksum:",checksum)
+                end_of_line_caracters = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("end_of_line_caracters:",end_of_line_caracters)
+
+            elif record_type == '01': #"End of Record."
+
+                memory_position = int(starting_address,16)//2
+                byte = str(f.read(4),'utf-8')
+                if Verbose == True :
+                    print("Index:{index} Val:{val}".format(index = i ,val = byte)) 
+                #CPU.flash[memory_position] = int(byte,16)  #little or big 
+                checksum = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("checksum:",checksum)
+                end_of_line_caracters = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("end_of_line_caracters:",end_of_line_caracters)
+                
+            elif record_type == '02':  #"Extended Segment Address Record"
+                if Verbose == True :
+                    print("Record type 02 not implemented")
+
+            elif record_type == '03':  #"Start Segment Address Record"
+                if Verbose == True :
+                    print("Record type 03 not implemented")
+
+            elif record_type == '04':  #"Extended Linear Address Record"
+                byte = str(f.read(4),'utf-8')
+                if Verbose == True :
+                    print("Val:{val}".format( val = byte)) 
+                memory_position = 0
+                checksum = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("checksum:",checksum)
+                end_of_line_caracters = str(f.read(2),'utf-8')
+                if Verbose == True :
+                    print("end_of_line_caracters",end_of_line_caracters)
+
+            elif record_type == '05':  #"Extended Linear Address Record"
+                if Verbose == True :
+                    print("Record type 05 not implemented")
+                
+        f.close()
+
+def runCycles(nbCycle):
+    sys.getSimulator().clk(nbCycle)
+def Flash_Memory_Dump():
+    if os.path.exists("Test/Top_level_test/FlashMemoryDump.txt"):
+        os.remove("Test/Top_level_test/FlashMemoryDump.txt")
+
+        ## CPU Flash memory dump  
+        dump = open("Test/Top_level_test/FlashMemoryDump.txt", "a")
+        #dump with instrucions decoded. #CALL and JUMP are 32bits 
+        for i in range(0,len(CPU.flash)):
+            ins = CPU.flash[i] 
+            if CPU.pc == (i-1): 
+                dump.write(">{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+            else:
+                dump.write("{0:>016b} : {instr} \n".format(ins,instr = ins_to_str(ins)))
+
+        dump.close()
+def Ram_Memory_Dump():
+    if os.path.exists("Test/Top_level_test/RamMemoryDump.txt"):
+        os.remove("Test/Top_level_test/RamMemoryDump.txt")
+
+    ## CPU Ram memory dump  
+    dump = open("Test/Top_level_test/RamMemoryDump.txt", "a")
+    #dump with instrucions decoded. #CALL and JUMP are 32bits 
+    for i in range(0,len(RAM.values)):
+        val = RAM.values[i]
+        dump.write("{0:>08b} : {val1} \n".format(val,val1 = val))
+
+    dump.close()
+def printState():
+            print("Register State")
+            #print register state 
+            print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
+            for i in range(32):
+                print("R{index} : {value}".format(index = i, value = CPU.reg[i]),end=" ")
+            print("Pc:{value}".format(value = CPU.pc))
+            print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xF)))
+            print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format(value1 = CPU.opp,value2 = bin(CPU.ins), value3 = CPU.Rr, value4 = CPU.Rd,value5 = CPU.K, value6 = hex(CPU.A)))
+            #print("I:{I} T:{T} H:{H} S:{S} V:{V} N:{N} Z:{Z} C{C}".format(I = CPU.I))
+            print("SREG:{0:>08b}".format(CPU.SREG))
 
 
 #wvf = py4hw.Waveform(sys,'wvf',SIGNALS)
@@ -271,12 +358,10 @@ RAM = Memory(sys,'mem',8,16,mem)
 #    sch.draw()
  
 
-instruction_counter = 0
-everything_ok = True
-
-
 #load instruction test to memory 
-if Instruction_test == True:
+def Instruction_test(Line_by_line=False,Verbose=False,breakPoint=0): 
+    instruction_counter = 0
+    everything_ok = True
 
     with open('Test/Code_Test/EXPECTED_REGISTER_VALUESV2.txt','r') as file:
         for line in file:
@@ -291,6 +376,7 @@ if Instruction_test == True:
     
     #loading the test code
     memory_position = 0
+
     with open('Test/Code_Test/INSTRUCTION_TESTV2.hex','rb') as f:
         while 1 :
             start_Code = f.read(1)
@@ -368,7 +454,7 @@ if Instruction_test == True:
         f.close()
         CPU.pc = 0
 
-        if  Line_by_Line == True:
+        if  Line_by_line == True:
             print("Hello \n n : next instruction \n r: ram memory dump \n f: flash memory dump \n e: exit ")
                 
             print("Register State")
@@ -462,6 +548,16 @@ if Instruction_test == True:
                     sys.getSimulator().clk(1)
                     #print("CPU.pc:=",CPU.pc)
                     #print("instruction",ins_to_str(CPU.flash[instruction_counter]))
+                    if breakPoint != 0:
+                        if CPU.pc == breakPoint:
+                            print("Next instruction:{instruction}".format(instruction =  ins_to_str(CPU.flash[CPU.pc])))
+                            for i in range(32):
+                                print("R{index}:{value}".format(index = i, value = CPU.reg[i]),end=" ")
+                            print("Pc:{value}".format(value = CPU.pc))
+                            print("Ps:{value}".format(value = (CPU.SPH<<8) | (CPU.SPL&0xFF)))
+                            print("opp:{value1} ins:{value2} Rr:{value3} Rd:{value4} K:{value5} A:{value6}".format( value1 = CPU.opp , value2 = bin(CPU.ins) , value3 = CPU.Rr , value4 = CPU.Rd ,value5 = CPU.K, value6 = hex(CPU.A)))
+                            print("SREG:{0:>08b}".format(CPU.SREG))
+                        
 
 
                 #testing if the output is correct
@@ -503,10 +599,7 @@ if Instruction_test == True:
                     dump.write("{addr} {A:>016b} : {instr} \n".format(A=ins,addr = i,instr = ins_to_str(ins)))
 
             dump.close()
-
-
-
-if Arduino_Code_Test == True: 
+def Arduino_Code_Test(Line_by_line=False,Verbose=False): 
     ## loading hex file of arduino test code to memory 
     memory_position = 0
     with open('./Code_Test/ARDUINO_TEST_PROGRAM.hex','rb') as f:
@@ -586,7 +679,9 @@ if Arduino_Code_Test == True:
         f.close()
 
 
-    if Line_by_Line == True:
+    if Line_by_line == True:
+
+
         print("Hello \n n : next instruction \n r: ram memory dump \n f: flash memory dump \n e: exit ")
             
         print("Register State")
@@ -647,3 +742,6 @@ if Arduino_Code_Test == True:
             
             elif user_command == 'e':#to exit
                 main_loop = False
+def list_commands():
+    for item in COMMANDS_LIST:
+        print(item)

@@ -673,28 +673,28 @@ noteq1:
     NOP
 noteq2:
     LDI R24,4
-    BST R24,3 ; Load T bit with bit 3 of R24 
+    BST R24,2 ; Load T bit with bit 3 of R24 
     BRBS 6,bitset1 ; Branch T bit was set 
     NOP
     NOP
     NOP
 bitset1:
     LDI R24,3
-    BST R24,3 ; Load T bit with bit 3 of R24 
+    BST R24,2 ; Load T bit with bit 3 of R24 
     BRBS 6,bitset2 ; Branch T bit was set 
     NOP
     NOP
     NOP
 bitset2:
     LDI R24,3
-    BST R24,3 ; Load T bit with bit 3 of R24 
+    BST R24,2 ; Load T bit with bit 3 of R24 
     BRBC 6,bitcl1 ; Branch T bit was set 
     NOP
     NOP
     NOP
 bitcl1:
     LDI R24,4
-    BST R24,3 ; Load T bit with bit 3 of R24 
+    BST R24,2 ; Load T bit with bit 3 of R24 
     BRBC 6,bitcl2 ; Branch T bit was set 
     NOP
     NOP
@@ -717,7 +717,7 @@ carry2:
     LDI R22,255
     LDI R23,1
     ADD R22,R23
-    BRCS nocarry1 ; Branch if carry cleared  
+    BRCC nocarry1 ; Branch if carry cleared  
     NOP
     NOP
     NOP
@@ -725,7 +725,7 @@ nocarry1:
     LDI R22,60
     LDI R23,80
     ADD R22,R23
-    BRCS nocarry2 ; Branch if carry cleared 
+    BRCC nocarry2 ; Branch if carry cleared 
     NOP
     NOP
     NOP
@@ -781,13 +781,13 @@ Tset1: ; Branch destination (do nothing)
     NOP
 Tset2: ; Branch destination (do nothing)
     CLT
-    BRTS Tcl1 
+    BRTC Tcl1 
     NOP
     NOP
     NOP
 Tcl1: ; BrancT destination (do nothing)
     SET
-    BRTS Tcl2 
+    BRTC Tcl2 
     NOP
     NOP
     NOP
@@ -805,13 +805,13 @@ Vset1: ; Branch destination (do nothing)
     NOP
 Vset2: ; Branch destination (do nothing)
     CLV
-    BRVS Vcl1 
+    BRVC Vcl1 
     NOP
     NOP
     NOP
 Vcl1: ; BrancT destination (do nothing)
     SEV
-    BRVS Vcl2 
+    BRVC Vcl2 
     NOP
     NOP
     NOP

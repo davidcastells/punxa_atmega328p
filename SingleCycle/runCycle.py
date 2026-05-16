@@ -44,7 +44,7 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.FirstBoot = True #is this actuatly odable ?
         self.BOOTRST = 1
         self.databyteNb = 0
-        self.FSM = 'Begin' # 
+        self.FSM = 'Begin' 
 
         self.A = 0
         self.q = 0
@@ -82,8 +82,11 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.SPMCSR_addr_IO = 0x37
         self.SPMCSR_addr_LS = 0x57
 
+
+
         self.gotToGoFast = False
 
+        self.insFiniteStateMachine = 'START'
         #interrutpts
         #self.INT0 = self.addIn('INT0',INT0)
         #self.INT1 = self.addIn('INT1',INT1)
@@ -282,6 +285,7 @@ class SingleCycleATmega328P(py4hw.Logic):
     def fetchIns(self):
         if(((self.SREG&1<<7)>>7)==1):# interruption
                 print('interruption')
+        self.pc = self.pc & 0x3FFF
 
         self.ins =  self.flash[self.pc]
 
@@ -1211,16 +1215,12 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc -=((~self.K)&0xFFF) + 1 
                 else:
                     self.pc += self.K + 1 
-                
             case 'IJMP':
                 self.pc  = + (self.reg[30] | self.reg[31]<<8)
-
             case 'JMP':
                 self.K = (((self.ins>>4)&0x1F)<<17)|(self.ins&0b1<<16)|self.flash[self.pc+1] 
                 self.pc = self.K
-
             case 'RCALL':
-                
                 self.K = self.ins&0xFFF
                 #handeling negative K numbers
                 if self.K>>11 == 1:
@@ -1265,7 +1265,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                 elif((self.databyteNb == 2) and (self.mem.resp.get() == 1)):
                     self.pc += self.K + 1
                     self.databyteNb = 0
-
             case 'ICALL':
                 SP = ((self.SPH<<8) | (self.SPL&0xFF))
 
@@ -1286,98 +1285,126 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.SPH = (SP>>8)&0xFF
                 self.SPL = SP&0xFF
             
-                #self.pc += self.reg[30]<<16|self.reg[31]
-                
+                #self.pc += self.reg[30]<<16|self.reg[31]   
             case 'CALL':
-                self.K = (((self.ins>>4)&0x1F)<<17)|(self.ins&0b1<<16)|self.flash[self.pc+1] 
-                SP = ((self.SPH<<8) | (self.SPL&0xFF))
+                self.K = (((self.ins>>4)&0x1F)<<17)|((self.ins&0b1)<<16)|self.flash[self.pc+1] 
+                SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
 
-                print("SP=",SP)
-                PC_to_store = (self.pc+1)&0xFFFF
-                print("PC_to_store=",bin(PC_to_store))
+                #print("SP=",SP)
+                PC_to_store = (self.pc+2)&0xFFFF
+                #print("PC_to_store=",bin(PC_to_store))
                 #separation of PC in 2 bytes
 
                 PClwo = PC_to_store&0xFF
-                PChigh = PC_to_store>>8
-                print("PClwo=",bin(PClwo))
-                print("PChigh=",bin(PChigh))
+                PChigh = (PC_to_store>>8)&0xFF
+                #print("PClwo=",bin(PClwo))
+                #print("PChigh=",bin(PChigh))
 
-                #preparing write operation
-                if self.databyteNb == 2:
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0) 
-                else:
-                    self.mem.write.prepare(1)
-                    self.mem.read.prepare(0)
+                match self.insFiniteStateMachine:
 
-                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-                    #writing the first byte
-                    self.mem.address.prepare(SP)
-                    self.mem.write_data.prepare(PClwo)  
-                    self.databyteNb = 1 
-                    print("byte 1")
-                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-                    self.mem.address.prepare(SP+1)
-                    self.mem.write_data.prepare(PChigh)
-                    self.databyteNb = 2
-                    #changing the stack pointer
-                    SP = SP - 2
-                    self.SPH = (SP>>8)&0xFF
-                    self.SPL = SP&0xFF
-                    print("byte 2")
-                elif((self.databyteNb == 2) and (self.mem.resp.get() == 1)):
-                    self.pc = self.K
-                    self.databyteNb = 0
+                    case 'START':
+                        self.mem.write.prepare(1)
+                        self.mem.read.prepare(0)
+
+                        self.mem.address.prepare(SP)
+                        self.mem.write_data.prepare(PClwo)
+
+                        if(self.mem.resp.get() == 1):
+                            self.insFiniteStateMachine = 'STEP1'
+
+                    case 'STEP1':
+
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                    
+                        self.insFiniteStateMachine = 'STEP2'
+
+                    case 'STEP2':
+
+                        self.mem.write.prepare(1)
+                        self.mem.read.prepare(0)
+                    
+                        self.mem.address.prepare(SP-1)
+                        self.mem.write_data.prepare(PChigh)
+
+                        if(self.mem.resp.get() == 1):
+                            self.insFiniteStateMachine = 'STEP3'
+
+                    case 'STEP3':
+
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                            
+                        self.insFiniteStateMachine = 'START'
+
+                        SP = SP - 2
+                        self.SPH = (SP>>8)&0xFF
+                        self.SPL = SP&0xFF
+
+                        self.pc = self.K
 
             case 'RET':
 
 
-                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-                    SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+1
-                    self.mem.address.prepare(SP)
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(1)
+                match self.insFiniteStateMachine:
+                    
+                    case 'START':
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+1
+
+                        self.mem.address.prepare(SP)
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(1)
+
+                        if self.mem.read.get() == 1:
+                            self.insFiniteStateMachine = 'STEP1'
 
 
-                elif (self.databyteNb == 0) and (self.mem.resp.get() == 1):
-                    self.high = self.mem.read_data.get()
-                    print("high=",bin(self.high))
-                    self.databyteNb = 1 
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0)
-                    print("byte 1")
+
+                    case 'STEP1':
+                        self.high = self.mem.read_data.get()
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                        self.insFiniteStateMachine = 'STEP2'
 
 
-                elif (self.databyteNb == 1) and (self.mem.resp.get() == 0):
-                    SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
-                    self.mem.address.prepare(SP+1)
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(1)
-                    self.databyteNb = 2
+
+                    case 'STEP2':
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
+                        self.mem.address.prepare(SP)
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(1)
 
 
-                elif (self.databyteNb == 2) and (self.mem.resp.get() == 1):
-                    self.low = self.mem.read_data.get()
-                    print("low=",bin(self.low))
-                    self.databyteNb = 0
-                    print("byte 2")
-                    self.K = ((self.high&0xFF)<<8) | (self.low&0xFF)
-                    self.pc  = self.K
-                    SP = ((self.SPH<<8) | (self.SPL))+2
-                    self.SPH = (SP>>8)&0x00FF
-                    self.SPL = SP&0x00FF
-            
+                        if self.mem.read.get() == 1 :
+                            self.insFiniteStateMachine = 'STEP3'
+
+
+
+                    case 'STEP3': 
+                        self.low = self.mem.read_data.get()
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
+
+                        self.SPH = (SP>>8)&0x00FF
+                        self.SPL = SP&0x00FF
+                        self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
+                        self.insFiniteStateMachine = 'START'
+
 
 
             case 'RETI':## return from interrupt 
                 SP = ((self.SPH<<8) | (self.SPL&0xF))
+
+
                 self.mem.address.prepare(SP)
                 self.mem.write.prepare(0)
                 self.mem.read.prepare(1)
                 self.pc = self.mem.read_data.get() #verifi that it is correct
+
+
                 SP += 2
                 self.SPH = SP&0xF0
                 self.SPL = SP&0xF
+
 
                 self.SREG |= (1<<7) #enabling interruts
 
@@ -1385,7 +1412,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
 
-                if self.Rr == self.Rd:
+
+                if self.reg[self.Rr] == self.reg[self.Rd]:
                     next_ins = ins_to_str(self.flash[self.pc])
                     if(next_ins == 'CALL' or next_ins == 'JMP' or next_ins == 'STS' or next_ins == 'LDS'):
                         self.pc += 3 ##skip 2 word instruction
@@ -1393,10 +1421,11 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.pc += 2## skip 1 word instruction 
                 else:
                     self.pc += 1
+
             case 'CP':
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] + self.reg[self.Rr] 
+                self.res =  self.reg[self.Rd] - self.reg[self.Rr] 
 
                 Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
                 Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
@@ -1446,7 +1475,7 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'CPC':
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] + self.reg[self.Rr] + (self.SREG & 0b1)
+                self.res =  (self.reg[self.Rd] - self.reg[self.Rr] - (self.SREG & 0b1)) & 0xFF
 
                 Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
                 Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
@@ -1458,8 +1487,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.SREG &= ~(1<<0)
 
                 #Z 
-                
-                if (self.res == 0) and (((self.SREG>>1)&0b1)) :
+                if (self.res == 0) or (((self.SREG>>1)&0b1)) :
                     self.SREG |= (1<<1)
                 else:
                     self.SREG &= ~(1<<1)
@@ -1495,25 +1523,33 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'CPI':
+                
                 self.K = (self.ins&0xF)|(((self.ins>>8)&0xF)<<4)
-                self.Rd = (self.ins>>4)&0xF
+                self.Rd = (self.ins>>4)&0xF + 16
                 self.res = (self.reg[self.Rd]-self.K) & 0xFF
 
+
+                print("K= ", self.K , "Rd =", self.Rd ,"Res", self.res)
+
+
                 Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
+                K7= ((self.K&0xFF)>>7)&0b1
                 R7 = ((self.res&0xFF)>>7)&0b1
+
+
                 #C
-                if ((not Rd7) & Rr7 )|( Rr7 & R7)|(R7 & (not Rd7)):
+                if ((not Rd7) & K7 )|( K7 & R7)|(R7 & (not Rd7)):
                     self.SREG |= (1<<0)
                 else:
                     self.SREG &= ~(1<<0)
 
+
                 #Z 
-                
                 if (self.res == 0):
                     self.SREG |= (1<<1)
                 else:
                     self.SREG &= ~(1<<1)
+
 
                 #N
                 if R7 == 1:
@@ -1521,13 +1557,15 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.SREG &= ~(1<<2)
 
+
                 #V
-                V = ((Rd7 & (not Rr7) & (not R7)) | ((not Rd7) & Rr7 & R7))&0b1
+                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
 
                 if V == 1:
                     self.SREG |= (1<<3)
                 else:
                     self.SREG &= ~(1<<3)
+
 
                 #S
                 if V^R7:
@@ -1535,16 +1573,21 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.SREG &= ~(1<<4)
 
+
                 #H
                 Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
+                K3= ((self.K&0xFF)>>3)&0b1
                 R3 = ((self.res&0xFF)>>3)&0b1
-                if ((not Rd3) & Rr3)|(Rr3 & R3 )|(R3 & (not Rd3)):
+
+
+                if ((not Rd3) & K3)|(K3 & R3 )|(R3 & (not Rd3)):
                     self.SREG |= (1<<5)
                 else:
                     self.SREG &= ~(1<<5)
 
+
                 self.pc+=1
+
 
             case 'SBRC':
                 b = self.ins&0b111
@@ -1557,7 +1600,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.pc += 2## skip 1 word instruction 
                 else:
                     self.pc += 1
-
             case 'SBRS':
                 b = self.ins&0b111
                 self.A = (self.ins>>4)&0b11111
@@ -1569,157 +1611,221 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.pc += 2## skip 1 word instruction 
                 else:
                     self.pc += 1
-                    
-
             case 'SBIC':
                 b = self.ins&0b111
                 A = (self.ins>>3)&0b11111
                 ## implement I/O read to test if 0
 
                 self.pc += 1
-
             case 'SBIS':
                 b = self.ins&0b111
                 A = (self.ins>>3)&0b11111
                 ## implement I/O read to test if 1
 
                 self.pc += 1
-
             case 'BRBS':
                 self.K =  (self.ins>>3)&0b1111111 
                 S =  self.ins&0b111
+
+                if (self.K & 0x40):
+                    self.K = self.K - 128
+                
                 if(self.SREG>>S)&1 == 1:
                     self.pc += + self.K +1
                 else:
                     self.pc += 1 
-
             case 'BRBC':
                 self.K =  (self.ins>>3)&0b1111111 
                 S =  self.ins&0b111
+
+                if (self.K & 0x40):
+                    self.K = self.K - 128
+
                 if(self.SREG>>S)&1 == 0:
-                    self.pc += + self.K +1
+                    self.pc += + self.K + 1
                 else:
                     self.pc += 1 
-
-            case 'BREQ':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>1)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-            case 'BRNE':
-                self.K = (self.ins>>3) & 0b1111111
-
-                if((self.SREG>>1)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRCS':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>0)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRCC':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>0)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-            case 'BRSH':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>0)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-            case 'BRLO':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>0)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRMI':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>2)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRGE':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>4)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRLT':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>4)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRHS':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>5)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRHC':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>5)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRTS':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>6)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRTC':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>6)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRVS':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>3)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRVC':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>3)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRIE':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>6)&1) == 1:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-            case 'BRID':
-                self.K = (self.ins>>3) & 0b1111111
-                if((self.SREG>>6)&1) == 0:
-                    self.pc += self.K + 1
-                else:
-                    self.pc += 1
-
-
-
+#            case 'BREQ':
+#                self.K = (self.ins>>3) & 0b1111111
+#                if((self.SREG>>1)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRNE':
+#
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#
+#                if((self.SREG>>1)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#
+#            case 'BRCS':
+#                self.K = ((self.ins>>3) & 0x7F)
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>0)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#
+#            case 'BRCC':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>0)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRSH':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>0)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRLO':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>0)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRMI':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>2)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#            case 'BRGE':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>4)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#            case 'BRLT':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>4)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#            case 'BRHS':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>5)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRHC':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>5)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRTS':
+#
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#
+#                if((self.SREG>>6)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#
+#            case 'BRTC':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40)==1:
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>6)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#
+#            case 'BRVS':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>3)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRVC':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>3)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRIE':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>6)&1) == 1:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
+#            case 'BRID':
+#                self.K = (self.ins>>3) & 0b1111111
+#
+#                if (self.K & 0x40):
+#                    self.K = self.K - 128
+#
+#                if((self.SREG>>6)&1) == 0:
+#                    self.pc += self.K + 1
+#                else:
+#                    self.pc += 1
             case 'SBI': ## implement write in io 
                 b = (self.ins & 0b111)
                 self.A = ((self.ins>>3)&0x1F)
@@ -1971,7 +2077,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
             case 'BST':
                 b = self.ins&0b111
-                self.Rd = (self.ins>>4)&0b11111
+                self.Rd = (self.ins>>4)&0x1F
+
                 self.SREG &= ~(0b1<<6)
                 self.SREG |= ((self.reg[self.Rd]>>b)&1)<<6
 
@@ -2071,10 +2178,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
@@ -2089,6 +2200,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
 
@@ -2101,6 +2214,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.reg[26] = self.A&0xFF 
                     self.reg[27] = (self.A>>8)&0xFF
 
+                    self.mem.instype.prepare(0)
+
                     self.pc += 1
                     self.databyteNb = 0
             case 'LD-X': #-X
@@ -2111,6 +2226,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.A -= 1 ##decrementing X
                     self.reg[26] = self.A&0xFF 
                     self.reg[27] = (self.A>>8)&0xFF
@@ -2120,6 +2237,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
@@ -2134,10 +2253,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1
                     self.databyteNb = 0
@@ -2149,6 +2272,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
 
@@ -2157,6 +2282,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
+
+                    self.mem.instype.prepare(0)
 
                     self.A = (self.A + 1) & 0xFFFF ##incrementing Y
                     self.reg[28] = self.A&0xFF 
@@ -2172,6 +2299,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.A -= 1 ##decrementing Y
                     self.reg[28] = self.A&0xFF 
                     self.reg[29] = (self.A>>8)&0xFF
@@ -2180,6 +2309,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
@@ -2195,11 +2326,15 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
 
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
@@ -2214,10 +2349,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1
                     self.databyteNb = 0
@@ -2229,6 +2368,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
@@ -2238,6 +2379,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.A += 1 ##incrementing Y
                     self.reg[30] = self.A&0xFF 
                     self.reg[31] = (self.A>>8)&0xFF
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1
                     self.databyteNb = 0
@@ -2249,6 +2392,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.A -= 1 ##decrementing Y
                     self.reg[30] = self.A&0xFF 
                     self.reg[31] = (self.A>>8)&0xFF
@@ -2257,6 +2402,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0) 
@@ -2273,10 +2420,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(0)
@@ -2292,12 +2443,15 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.read.prepare(1) 
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.databyteNb = 1
 
                 elif self.mem.resp.get() == 1:
                     self.reg[self.Rd] = self.mem.read_data.get()
 
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1
                     self.databyteNb = 0
@@ -2309,6 +2463,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
 
@@ -2317,6 +2473,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2328,6 +2486,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
                     
@@ -2336,6 +2496,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.A += 1 ##incrementing X
                     self.reg[26] = self.A&0xFF 
@@ -2356,6 +2518,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.reg[26] = self.A&0xFF 
                     self.reg[27] = (self.A>>8)&0xFF
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
                     
@@ -2364,6 +2528,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2376,6 +2542,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
                     
@@ -2384,6 +2552,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2395,6 +2565,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
 
@@ -2404,6 +2576,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.A += 1 ##incrementing Y
                     self.reg[28] = self.A&0xFF 
@@ -2424,6 +2598,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.reg[28] = self.A&0xFF 
                     self.reg[29] = (self.A>>8)&0xFF
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
                     
@@ -2433,6 +2609,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2448,13 +2626,17 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
-                    
+
+                    self.mem.instype.prepare(1)
+
                     self.databyteNb = 1
 
                 else:
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2466,12 +2648,16 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
+                    self.mem.instype.prepare(1)
+
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
 
                     self.databyteNb = 1
                     
                 else:
+
+                    self.mem.instype.prepare(0)
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
@@ -2482,13 +2668,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
-
                 if self.databyteNb == 0:
                     self.mem.write.prepare(1)
                     self.mem.read.prepare(0)
 
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
+
+                    self.mem.instype.prepare(1)
 
                     self.databyteNb = 1
                     
@@ -2500,6 +2687,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.A += 1 ##incrementing Z
                     self.reg[30] = self.A&0xFF 
                     self.reg[31] = (self.A>>8)&0xFF
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2517,13 +2706,17 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
-                    
+
+                    self.mem.instype.prepare(1)
+
                     self.databyteNb = 1
 
                 else:
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2538,13 +2731,17 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.address.prepare(self.A+self.q)
                     self.mem.write_data.prepare(self.reg[self.Rd])
-                    
+
+                    self.mem.instype.prepare(1)
+
                     self.databyteNb = 1
 
                 else:
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 1 
                     self.databyteNb = 0
@@ -2558,6 +2755,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.address.prepare(self.A)
                     self.mem.write_data.prepare(self.reg[self.Rd])
+                    self.mem.instype.prepare(1)
                     
                     self.databyteNb = 1
 
@@ -2565,6 +2763,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
+
+                    self.mem.instype.prepare(0)
 
                     self.pc += 2
                     self.databyteNb = 0
@@ -2614,8 +2814,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 if SELFPRGEN == 1 :
                     self.A = self.reg[30]|(self.reg[31]<<8)
 
-                    self.flash[self.A] = self.reg[0]|(self.reg[1]<<8) #verifi the order of the registers
-            
+                    self.flash[self.A] = self.reg[0]|(self.reg[1]<<8) #verify the order of the registers
+
 
                 else:
                     self.pc += 1
@@ -2675,10 +2875,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.mem.write.prepare(0)
                         self.mem.read.prepare(1) 
 
+                        self.mem.instype.prepare(0)
+
                         self.mem.address.prepare(self.A)
                         self.databyteNb = 1
                     elif self.mem.resp.get() == 1:
                         self.reg[self.Rd] = self.mem.read_data.get()
+
+                        self.mem.instype.prepare(0)
 
                         self.pc += 1
                         self.databyteNb = 0
@@ -2709,6 +2913,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.pc += 1 
                     self.databyteNb = 0
+                    
             case 'POP':
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
@@ -2731,10 +2936,9 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
                     self.mem.write.prepare(0)
 
-
-
                     self.pc += 1
                     self.databyteNb = 0
+
             case 'NOP':
                 self.pc += 1 
             case 'SLEEP':

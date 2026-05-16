@@ -43,7 +43,7 @@ print(Mem_table_cols)
 
 
 program_box.clear()
-file = open('Test/Code_Test/INSTRUCTION_TESTV2.S','r') 
+file = open('INSTRUCTION_TESTV2.S','r') 
 program_text = file.read()
 file.seek(0,0)
 pyperclip.copy(program_text)

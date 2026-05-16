@@ -29,7 +29,7 @@ class MemoryInterface(Interface):
         self.resp = self.addSinkToSource('resp',1)# 0 = normal state, 1 = Operation Performed
 
 
-class Memory(Logic):
+class Ram_Memory(Logic):
     def __init__(self, parent:Logic, name:str, data_width:int, address_width:int, port:MemoryInterface):
         super().__init__(parent, name)
 
@@ -67,34 +67,114 @@ class Memory(Logic):
             self.port0.resp.prepare(0)
 
 
-class PersistentMemory(Logic):
-    def __init__(self, parent:Logic, name:str,filename,port:MemoryInterface):
+class EEPROM_Memory(Logic):
+    def __init__(self, parent:Logic, name:str, data_width:int, address_width:int, port:MemoryInterface,EERI):
         super().__init__(parent,name)
         
-        self.port = self.addInterfaceSink('port',port)
-        file =  open(filename,'r+b')
-        self.mm = mmap.mmap(file.foleno(),0)
+        self.port0 = self.addInterfaceSink('port',port)
+        self.startAddress = 0x000
+        self.stopAddress = 0x3FF
+        self.values = [0]*(self.stopAddress-self.startAddress)
+
+        self.EERI = py4hw.addOut('EERI',EERI)
+
+
+        self.EEARH = 0
+        self.EEARH_addr_IO = 0x22
+        self.EEARH_addr_LS = 0x42
+
+
+        self.EEARL = 0
+        self.EEARL_addr_IO = 0x21 
+        self.EEARL_addr_LS = 0x41
+
+
+        self.EEDR = 0
+        self.EEDR_addr_IO = 0x20
+        self.EEDR_addr_LS = 0x40
+
+
+        self.EECR = 0
+        self.EECR_addr_IO = 0x1F
+        self.EECR_addr_LS = 0x3F
+
+        self.ADDR = 0
+
+
 
     def clock(self):
-        data_width = self.port.read_data.getWidth()
 
-        address = self.port.address.get()
-        be = self.port.be.get()
+        self.ADDR = self.port0.address.get()
+        if ((self.ADDR == self.EEARH_addr_IO) and self.port0.instype.get() == 0) or ((self.ADDR == self.EEARH_addr_LS) and self.port0.instype.get() == 1):
+            if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
+                self.port0.read_data.prepare(self.EEARH)
+                self.port0.resp.prepare(1)
+            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
+                self.EEARH = self.port0.write_data.get()
+                self.port0.resp.prepare(1)
+            else:
+                self.port0.resp.prepare(0)
+        elif ((self.ADDR == self.EEARL_addr_IO) and self.port0.instype.get() == 0) or ((self.ADDR == self.EEARL_addr_LS)and self.port0.instype.get() == 1):
+            if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
+                self.port0.read_data.prepare(self.EEARL)
+                self.port0.resp.prepare(1)
+            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
+                self.EEARL = self.port0.write_data.get()
+                self.port0.resp.prepare(1)
+            else:
+                self.port0.resp.prepare(0)
+        elif ((self.ADDR == self.EEDR_addr_IO) and self.port0.instype.get() == 0) or ((self.ADDR == self.EECR_addr_LS)and self.port0.instype.get() == 1):
+            if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
+                self.port0.read_data.prepare(self.EEDR)
+                self.port0.resp.prepare(1)
+            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1): #write
+                self.EEDR = self.port0.write_data.get()
+                self.port0.resp.prepare(1)
+            else:
+                self.port0.resp.prepare(0)
 
-        if(self.port.read.get()):
-            value = 0
-            for i in range(data_width // 8 ):
-                value = value | (self.readByte(address+i)<<(i*8))
-            print('reading address',hex(address),'=',hex(value))
+        address = ((self.EEARH<<8)&0b1)|(self.EEARL)
 
-        elif(self.prot.write.get()):
-            value = self.port.write_data.get()
-            print('witing addres',hex(address),'=',hex(value))
+        #EEPROM Control Register
 
-            for i in range(data_width // 8):
-                if((be & 0x1) != 0):
-                    self.writeByte(address +i, value & 0xFF)
+        EEPM = ((self.EECR>>4) & 3)
+        EERIE =  ((self.EECR>>3) & 1)
+        EEMPE = ((self.EECR>>2) & 1 )
+        EEPE = ((self.EECR>>1) & 1)
+        EERE = (self.EECR & 1)
+
+        if (address >= self.startAddress) and (address <= self.stopAddress):
+
             
+            
+            print("opperation")
+            #print((self.port0.read.get() == 1) and (self.port0.write.get() == 0))
+            #print((self.port0.read.get() == 1) and (self.port0.write.get() == 1))
+
+            if EEPM == 1:
+                self.port0.read_data.prepare(self.values[address])
+                self.port0.resp.prepare(1)
+                #print('reading address ', address, '=', self.values[address])
+
+
+            elif EEPM == 2:
+                self.values[address] = self.port0.write_data.get()
+                self.port0.resp.prepare(1)
+                #print('writing address ', address, '=', self.values[address])
+                
+            elif EEPM == 0:
+                self.port0.read_data.preapre(self.values[address])
+                self.values[address] = self.port0.write_data.get()
+                self.port0.resp.prepare(1)
+            else:
+                self.port0.resp.prepare(0)
+        else:
+            self.port0.resp.prepare(0)
+            
+
+
+
+
 
 class ProgramMemory(py4hw.Logic):
     def __init__(self,parent,name,ADRESS,DATA_IN,DATA_OUT, Write_Enable): #RW = 0 then R else W
