@@ -2078,10 +2078,13 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'BST':
                 b = self.ins&0b111
                 self.Rd = (self.ins>>4)&0x1F
+                bit = (self.reg[self.Rd]>>b)&1
 
-                self.SREG &= ~(0b1<<6)
-                self.SREG |= ((self.reg[self.Rd]>>b)&1)<<6
-
+                if bit:
+                    self.SREG |= (1<<6)
+                else:
+                    self.SREG &= ~(1<<6)
+ 
                 self.pc += 1
             case 'BLD':
                 b = self.ins&0b111
@@ -2165,7 +2168,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
             case 'LDI':
             
-                self.Rd = ((self.ins>>4)&0b1111)+16
+                self.Rd = ((self.ins>>4)&0xF)+16
                 self.K = (self.ins&0xF)|((((self.ins)>>8)&0xF)<<4)
 
                 self.reg[self.Rd] = self.K 
@@ -2934,7 +2937,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.reg[self.Rd] = self.mem.read_data.get()
 
                     self.mem.write.prepare(0)
-                    self.mem.write.prepare(0)
+                    self.mem.read.prepare(0)
 
                     self.pc += 1
                     self.databyteNb = 0
