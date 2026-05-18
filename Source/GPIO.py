@@ -1,6 +1,5 @@
 import py4hw
 from Source.Memory import * 
-import py4hw
 from py4hw.logic import *
 from py4hw.logic.storage import *
 from py4hw.simulation import Simulator

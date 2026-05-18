@@ -87,32 +87,7 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.gotToGoFast = False
 
         self.insFiniteStateMachine = 'START'
-        #interrutpts
-        #self.INT0 = self.addIn('INT0',INT0)
-        #self.INT1 = self.addIn('INT1',INT1)
-        #self.PCINT0 = self.addIn('PCINT0',PCINT0)
-        #self.PCINT1 = self.addIn('PCINT1',PCINT1)
-        #self.PCINT2 = self.addIn('PCINT2',PCINT2)
-        #self.WDT = self.addIn('WDT',WDT)
-        #self.TIMER2_COMPA = self.addIn('TIMER2_COMPA',TIMER2_COMPA)
-        #self.TIMER2_COMPB = self.addIn('TIMER2_COMPB',TIMER2_COMPB)
-        #self.TIMER2_OVF = self.addIn('TIMER2_OVF',TIMER2_OVF)
-        #self.TIMER1_CAPT = self.addIn('TIMER1_CAPT',TIMER1_CAPT)
-        #self.TIMER1_COMPA = self.addIn('TIMER1_COMPA',TIMER1_COMPA)
-        #self.TIMER1_COMPB = self.addIn('TIMER1_COMPB',TIMER1_COMPB)
-        #self.TIMER1_OVF = self.addIn('TIMER1_OVF',TIMER1_OVF)
-        #self.TIMER0_COMPA = self.addIn('TIMER0_COMPA',TIMER0_COMPA)
-        #self.TIMER0_COMPB = self.addIn('TIMER0_COMPB',TIMER0_COMPB)
-        #self.TIMER0_OVF = self.addIn('TIMER0_OVF',TIMER0_OVF)
-        #self.SPI_STC = self.addIn('SPI_STC',SPI_STC)
-        #self.USART_RX = self.addIn('USART_RX',USART_RX)
-        #self.USART_UDRE = self.addIn('USART_UDRE',USART_UDRE)
-        #self.USART_TX = self.addIn('USART_TX',USART_TX)
-        #self.ADC = self.addIn('ADC',ADC)
-        #self.EE_READY = self.addIn('EE_READY',EE_READY)
-        #self.ANALOG_COMP = self.addIn('ANALOG_COMP',ANALOG_COMP)
-        #self.TWI = self.addIn('TWI',TWI)
-        #self.SPM_READY = self.addIn('SPM_READY',SPM_READY)
+
 
         
 
@@ -127,105 +102,6 @@ class SingleCycleATmega328P(py4hw.Logic):
 
 
 #    def HandleInterupts(self):
-
-#        if self.INT0.get() == 1:
-            ## save the current pc position to the stack 
-
-            ## go to the interrupt vector
-#            self.pc = 0x002 
-
-#        if self.INT1.get() == 1: 
-
-#            self.pc = 0x004
-
-#        if self.PCINT0.get() == 1: 
-
-#            self.pc = 0x006
-
-#        if self.PCINT1.get() == 1:
-
-#            self.pc = 0x008
-
-#        if self.PCINT2.get() == 1:
-
-#            self.pc = 0x00A
-
-#        if self.WDT.get() == 1:
-
-#            self.pc = 0x00C
-
-#        if self.TIMER2_COMPA.get() == 1:
-
-#            self.pc = 0x00E
-
-#        if self.TIMER2_COMPB.get() == 1:
-
-#            self.pc = 0x010
-
-#        if self.TIMER2_OVF.get() == 1: 
-
-#           self.pc = 0x012
-
-#        if self.TIMER1_CAPT.get() == 1:
-
-#            self.pc = 0x014
-
-#        if self.TIMER1_COMPA.get() == 1: 
-
-#            self.pc = 0x016
-
-#        if self.TIMER1_COMPB.get() == 1: 
-
-#            self.pc = 0x018
-
-#        if self.TIMER1_OVF.get() == 1: 
-
-#            self.pc = 0x01A
-
-#        if self.TIMER0_COMPA.get() == 1: 
-
-#            self.pc = 0x01C
-
-#        if self.TIMER0_COMPB.get() == 1:
-
-#            self.pc = 0x01E
-
-#        if self.TIMER0_OVF.get() == 1:
-
-#            self.pc = 0x020
-
-#        if self.SPI_STC.get() == 1:
-
-#            self.pc = 0x022
-
-#        if self.USART_RX.get() == 1:
-        
-#            self.pc = 0x24
-
-#        if self.USART_UDRE.get() == 1:
-
-#            self.pc = 0x026
-
-#        if self.USART_TX.get() == 1:
-
-#            self.pc = 0x028
-#        if self.ADC.get() == 1:
-
-#            self.pc = 0x2A
-#        if self.EE_READY.get() == 1:
-
-#            self.pc = 0x2C
-#        if self.ANALOG_COMP.get() == 1:
-
-#            self.pc = 0x2E
-#        if self.TWI.get() == 1:
-
-#            self.pc = 0x030
-#        if self.SPM_READY.get() == 1: 
-
-#            self.pc = 0x032
-
-
 
     def writeToMemory(self,Rr,A,q):
         self.A = A
@@ -548,12 +424,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.SREG &= ~(1<<5)
 
 
-#                self.testC(self.res)
-#                self.testZ(self.res)
-#                self.testN(self.res)
-#                self.testV(self.reg[self.Rd],self.reg[self.Rr],self.res)
-#                self.testS()
-#                #self.testH(self.reg[self.Rd],self.reg[self.Rr],self.res)  different methode to determining H 
 
                 self.reg[self.Rd] =  self.res & 0xFF
 
@@ -693,7 +563,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.SREG |= (1<<4)
                 else:
                     self.SREG &= ~(1<<4)
-
 
 
                 self.reg[self.Rd] =  self.res&0xFF
@@ -1025,17 +894,6 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.reg[self.Rd] =  self.res
                 self.pc += 1
-#            case 'CLR': fantom instruction
-#                self.Rd = ((self.ins>>4) & 0x1F)
-#                #Rd2 = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
-#
-#                self.SREG &= ~(1<<S) # flag V to 0
-#                self.SREG &= ~(1<<V) # flag V to 0
-#                self.SREG &= ~(1<<N) # flag N to 0
-#                self.SREG &= (1<<Z) # flag Z to 1
-#
-#                self.reg[self.Rd] =  0
-#                self.pc +=1
             case 'SER':
                 self.Rd = (self.ins>>4)&0b1111 + 16
                 self.reg[self.Rd] = 0xFF
@@ -1276,8 +1134,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.mem.read.prepare(0)
                 #writing the firstbyte
 
-#               slef.mem.address.prepare(SP)
-#               self.mem.w
+
                 self.mem.address.prepare(SP)
 
                 self.mem.write_data.prepare(self.pc+1) ## writing to the stack(ram) the value 
@@ -1290,15 +1147,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.K = (((self.ins>>4)&0x1F)<<17)|((self.ins&0b1)<<16)|self.flash[self.pc+1] 
                 SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
 
-                #print("SP=",SP)
+
                 PC_to_store = (self.pc+2)&0xFFFF
-                #print("PC_to_store=",bin(PC_to_store))
-                #separation of PC in 2 bytes
+
 
                 PClwo = PC_to_store&0xFF
                 PChigh = (PC_to_store>>8)&0xFF
-                #print("PClwo=",bin(PClwo))
-                #print("PChigh=",bin(PChigh))
+
 
                 match self.insFiniteStateMachine:
 
@@ -1342,7 +1197,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.SPL = SP&0xFF
 
                         self.pc = self.K
-
             case 'RET':
 
 
@@ -1357,16 +1211,12 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                         if self.mem.read.get() == 1:
                             self.insFiniteStateMachine = 'STEP1'
-
-
-
+                            
                     case 'STEP1':
                         self.high = self.mem.read_data.get()
                         self.mem.write.prepare(0)
                         self.mem.read.prepare(0)
                         self.insFiniteStateMachine = 'STEP2'
-
-
 
                     case 'STEP2':
                         SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
@@ -1378,8 +1228,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                         if self.mem.read.get() == 1 :
                             self.insFiniteStateMachine = 'STEP3'
 
-
-
                     case 'STEP3': 
                         self.low = self.mem.read_data.get()
                         SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
@@ -1388,9 +1236,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.SPL = SP&0x00FF
                         self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
                         self.insFiniteStateMachine = 'START'
-
-
-
             case 'RETI':## return from interrupt 
                 SP = ((self.SPH<<8) | (self.SPL&0xF))
 
@@ -1421,7 +1266,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.pc += 2## skip 1 word instruction 
                 else:
                     self.pc += 1
-
             case 'CP':
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
@@ -1587,8 +1431,6 @@ class SingleCycleATmega328P(py4hw.Logic):
 
 
                 self.pc+=1
-
-
             case 'SBRC':
                 b = self.ins&0b111
                 self.A = (self.ins>>4)&0b11111
@@ -1645,187 +1487,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += + self.K + 1
                 else:
                     self.pc += 1 
-#            case 'BREQ':
-#                self.K = (self.ins>>3) & 0b1111111
-#                if((self.SREG>>1)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRNE':
-#
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#
-#                if((self.SREG>>1)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#
-#            case 'BRCS':
-#                self.K = ((self.ins>>3) & 0x7F)
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>0)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#
-#            case 'BRCC':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>0)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRSH':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>0)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRLO':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>0)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRMI':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>2)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#            case 'BRGE':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>4)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#            case 'BRLT':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>4)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#            case 'BRHS':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>5)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRHC':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>5)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRTS':
-#
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#
-#                if((self.SREG>>6)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#
-#            case 'BRTC':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40)==1:
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>6)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#
-#            case 'BRVS':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>3)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRVC':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>3)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRIE':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>6)&1) == 1:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
-#            case 'BRID':
-#                self.K = (self.ins>>3) & 0b1111111
-#
-#                if (self.K & 0x40):
-#                    self.K = self.K - 128
-#
-#                if((self.SREG>>6)&1) == 0:
-#                    self.pc += self.K + 1
-#                else:
-#                    self.pc += 1
             case 'SBI': ## implement write in io 
                 b = (self.ins & 0b111)
                 self.A = ((self.ins>>3)&0x1F)
@@ -2093,56 +1754,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] |= ((self.SREG>>6)&1)<<b
 
                 self.pc += 1
-# Useless code because these instructions don't exist in hardware
-#            case 'SEC':
-#                self.SREG |= (1<<C)   
-#                self.pc += 1
-#            case 'CLC':
-#                self.SREG &= ~(1<<C)   
-#                self.pc += 1                
-#            case 'SEN':
-#                self.SREG |= (1<<N)   
-#                self.pc += 1
-#            case 'CLN':
-#                self.SREG &= ~(1<<N)   
-#                self.pc += 1
-#            case 'SEZ':
-#                self.SREG |= (1<<Z)   
-#                self.pc += 1
-#            case 'CLZ':
-#                self.SREG &= ~(1<<Z)   
-#                self.pc += 1
-#            case 'SEI':
-#                self.SREG |= (1<<I)   
-#                self.pc += 1
-#            case 'CLI':
-#                self.SREG &= ~(1<<I)   
-#                self.pc += 1
-#            case 'SES':
-#                self.SREG |= (1<<S)   
-#                self.pc += 1
-#            case 'CLS':
-#                self.SREG &= ~(1<<S)   
-#                self.pc += 1
-#            case 'SEV':
-#                self.SREG |= (1<<V)   
-#                self.pc += 1
-#            case 'CLV':
-#                self.SREG &= ~(1<<V)   
-#                self.pc += 1
-#            case 'SET':
-#                self.SREG |= (1<<T)   
-#                self.pc += 1
-#            case 'CLT':
-#                self.SREG &= ~(1<<T)   
-#                self.pc += 1
-#            case 'SEH':
-#                self.SREG |= (1<<H)   
-#                self.pc += 1
-#            case 'CLH':
-#                self.SREG &= ~(1<<H)   
-#                self.pc += 1
-# End of the useless code 
 
 #pointer registers
 # R26 X-register Low Byte 
@@ -2814,14 +2425,37 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'SPM':
                 # must use SPMCSR
                 SELFPRGEN = self.SPMCSR & 0b1
-                if SELFPRGEN == 1 :
-                    self.A = self.reg[30]|(self.reg[31]<<8)
+                PGERS = (self.SPMCSR>>1) & 0b1
+                PGWRT = (self.SPMCSR>>2) & 0b1
+                BLBSET = (self.SPMCSR>>3) & 0b1
+                RWWSRE = (self.SPMCSR>>4) & 0b1
+                RES = (self.SPMCSR>>5) & 0b1
+                RWWSB = 0
+                SPMIE = (self.SPMCSR>>7) & 0b1
 
-                    self.flash[self.A] = self.reg[0]|(self.reg[1]<<8) #verify the order of the registers
+                self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
+
+                if SELFPRGEN == 1 : # Enabling the writing
+
+                    if (PGERS == 1) and (PGWRT == 0): # Page Erase
+                        self.flash[self.A] =  0;
 
 
-                else:
-                    self.pc += 1
+                        if SPMIE == 1:
+                            print("Interrupt")
+                
+
+                    if (PGERS == 0) and (PGWRT == 1) : # Page Write
+                        self.flash[self.A] = (self.reg[0]&0xFF)|((self.reg[1]<<8)&0xFF) #verify the order of the registers
+
+
+                        if SPMIE == 1:
+                            print("Interrupt")
+
+                
+
+
+                self.pc += 1
 
             case 'IN':
                 self.Rd = (self.ins>>4)&0b11111
@@ -2855,8 +2489,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     # increment by one if the address is invalid    
                     self.pc+=1
-            case 'OUT':
 
+            case 'OUT':
                 self.Rr = (self.ins>>4)&0b11111
                 self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
 
@@ -2915,8 +2549,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.mem.write.prepare(0)
 
                     self.pc += 1 
-                    self.databyteNb = 0
-                    
+                    self.databyteNb = 0            
             case 'POP':
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
@@ -2941,7 +2574,6 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                     self.pc += 1
                     self.databyteNb = 0
-
             case 'NOP':
                 self.pc += 1 
             case 'SLEEP':
