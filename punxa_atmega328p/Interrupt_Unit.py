@@ -1,7 +1,5 @@
 import py4hw
-from Source.Memory import *
-
-
+from punxa_atmega328p.Memory import *
 
 
 class InterruptUnit(py4hw.Logic):

@@ -2,7 +2,7 @@
 
 import datetime
 import py4hw
-from Source.Instruction_Decoder import ins_to_str
+from punxa_atmega328p.Instruction_Decoder import ins_to_str
 
 list = []
 f = open("output.txt", "a")

@@ -5,9 +5,9 @@
 
 import py4hw
 import os
-from SingleCycle.runCycle import *
-from Source.Memory import *
-from Source.Instruction_Decoder import *
+from punxa_atmega328p.SingleCycle.runCycle import *
+from punxa_atmega328p.Memory import *
+from punxa_atmega328p.Instruction_Decoder import *
 import ast
 
 PASS_OR_FAIL_LIST =[]
@@ -15,11 +15,11 @@ INSTRUCTION_SET_TEST_EXPECTED_REGISTER_VALUES = []
 INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = []
 #INSTRUCTION_SET_TEST_EXPECTED_MEMORY_VALUES = [] # {address} {Value} 
 COMMANDS_LIST= ["Build_Hardware","Instruction_test","Arduino_Code_Test","list_commands","printState","runCycles","Load_program_to_memory","Flash_Memory_Dump"]
-
-
-
-#  +-----+    +-----+     +-----+
-#  | CPU |--C-| bus |--B--| mem |
+#             +-----+     +---------------------+
+#             | bus |--R--| GlobalConfRegisters |
+#             |     |     +---------------------+
+#  +-----+    |     |     +-----+
+#  | CPU |--C-|     |--B--| mem |
 #  +-----+    |     |     +-----+
 #             |     |     +------+
 #             |     |--U--| uart |
@@ -43,9 +43,13 @@ COMMANDS_LIST= ["Build_Hardware","Instruction_test","Arduino_Code_Test","list_co
 #             |     |--T2--| 8bitTimer2|
 #             |     |      +-----------+
 #             |     |      +-----------+
-#             |     |--E--|   EEPROM   |
+#             |     |--E---|   EEPROM  |
+#             |     |      +-----------+
+#             |     |      +-----------+
+#             |     |--I---| Interrupt |
 #             |     |      +-----------+
 #             +-----+
+#
 #  | start               | stop                | device        |
 #  | 0080 0000 0000 0000 | 0080 0000 FFFF FFFF | memory (2GB)  |
 #  | 0000 00FF F0C2 C000 | 0000 00FF F0C2 CFFF | UART          |

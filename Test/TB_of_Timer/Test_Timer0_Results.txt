@@ -1,0 +1,15 @@
+test:register_readwrite         FAIL
+test:cs0_stops_timer            PASS
+test:prescaler                  PASS
+test:external_clock             FAIL
+test:normal_mode                FAIL
+test:ctc_mode                   FAIL
+test:fast_pwm_wgm3              FAIL
+test:fast_pwm_wgm7              FAIL
+test:phase_correct_wgm1         PASS
+test:phase_correct_wgm5         FAIL
+test:wgm_decoding               PASS
+test:com_decoding               PASS
+test:foc                        FAIL
+test:tcnt0_write_blocks         FAIL
+test:known_bugs                 FAIL

@@ -1,6 +1,6 @@
 import py4hw
-from Source.Memory import *
-from Source.GPIO import *
+from punxa_atmega328p.Memory import *
+from punxa_atmega328p.GPIO import *
 
 
 sys = py4hw.HWSystem()

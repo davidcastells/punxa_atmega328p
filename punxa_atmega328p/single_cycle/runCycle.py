@@ -3,7 +3,6 @@ from Source.Instruction_Decoder import *
 from Source.Memory import * 
 
 
-
 ## *_IO = IN and OUT instruction address
 ## *_LS =  LD LDS ST STS instruction address
 
@@ -88,9 +87,9 @@ class SingleCycleATmega328P(py4hw.Logic):
 
         self.insFiniteStateMachine = 'START'
 
-
+        self.PAGE_SIZE_WORDS = 64
         
-
+        self.temp_page_buffer = [0xFFFF] * self.PAGE_SIZE_WORDS     
 
     def clock(self):
         self.fetchIns()
@@ -367,12 +366,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.SREG &= ~(1<<5)
 
-#                self.testC(self.res)
-#                self.testZ(self.res)
-#                self.testN(self.res)
-#                self.testV(self.reg[self.Rd],self.reg[self.Rr],self.res)
-#                self.testS()
-                #self.testH(self.reg[self.Rd],self.reg[self.Rr],self.res) different methode to determining H 
                 self.reg[self.Rd] =  self.res & 0xFF
 
                 self.pc += 1
@@ -1124,25 +1117,59 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += self.K + 1
                     self.databyteNb = 0
             case 'ICALL':
-                SP = ((self.SPH<<8) | (self.SPL&0xFF))
-
-                #separation of PC in 2 bytes
-                PClwo= self.pc&0xFF
-                PChigh= self.pc>>8
-                #preparing read operation
-                self.mem.write.prepare(1)
-                self.mem.read.prepare(0)
-                #writing the firstbyte
+                self.A = (self.reg[30]&0xFF) | ((self.reg[31]&0xFF)<<8) 
+                SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
 
 
-                self.mem.address.prepare(SP)
+                PC_to_store = (self.pc+2)&0xFFFF
 
-                self.mem.write_data.prepare(self.pc+1) ## writing to the stack(ram) the value 
-                SP -= 2
-                self.SPH = (SP>>8)&0xFF
-                self.SPL = SP&0xFF
-            
-                #self.pc += self.reg[30]<<16|self.reg[31]   
+
+                PClwo = PC_to_store&0xFF
+                PChigh = (PC_to_store>>8)&0xFF
+
+
+                match self.insFiniteStateMachine:
+
+                    case 'START':
+                        self.mem.write.prepare(1)
+                        self.mem.read.prepare(0)
+
+                        self.mem.address.prepare(SP)
+                        self.mem.write_data.prepare(PClwo)
+
+                        if(self.mem.resp.get() == 1):
+                            self.insFiniteStateMachine = 'STEP1'
+
+                    case 'STEP1':
+
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                    
+                        self.insFiniteStateMachine = 'STEP2'
+
+                    case 'STEP2':
+
+                        self.mem.write.prepare(1)
+                        self.mem.read.prepare(0)
+                    
+                        self.mem.address.prepare(SP-1)
+                        self.mem.write_data.prepare(PChigh)
+
+                        if(self.mem.resp.get() == 1):
+                            self.insFiniteStateMachine = 'STEP3'
+
+                    case 'STEP3':
+
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                            
+                        self.insFiniteStateMachine = 'START'
+
+                        SP = SP - 2
+                        self.SPH = (SP>>8)&0xFF
+                        self.SPL = SP&0xFF
+
+                        self.pc = self.A  
             case 'CALL':
                 self.K = (((self.ins>>4)&0x1F)<<17)|((self.ins&0b1)<<16)|self.flash[self.pc+1] 
                 SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
@@ -1237,21 +1264,42 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
                         self.insFiniteStateMachine = 'START'
             case 'RETI':## return from interrupt 
-                SP = ((self.SPH<<8) | (self.SPL&0xF))
+                match self.insFiniteStateMachine:
+                    
+                    case 'START':
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+1
+
+                        self.mem.address.prepare(SP)
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(1)
+
+                        if self.mem.read.get() == 1:
+                            self.insFiniteStateMachine = 'STEP1'
+                            
+                    case 'STEP1':
+                        self.high = self.mem.read_data.get()
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(0)
+                        self.insFiniteStateMachine = 'STEP2'
+
+                    case 'STEP2':
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
+                        self.mem.address.prepare(SP)
+                        self.mem.write.prepare(0)
+                        self.mem.read.prepare(1)
 
 
-                self.mem.address.prepare(SP)
-                self.mem.write.prepare(0)
-                self.mem.read.prepare(1)
-                self.pc = self.mem.read_data.get() #verifi that it is correct
+                        if self.mem.read.get() == 1 :
+                            self.insFiniteStateMachine = 'STEP3'
 
+                    case 'STEP3': 
+                        self.low = self.mem.read_data.get()
+                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
 
-                SP += 2
-                self.SPH = SP&0xF0
-                self.SPL = SP&0xF
-
-
-                self.SREG |= (1<<7) #enabling interruts
+                        self.SPH = (SP>>8)&0x00FF
+                        self.SPL = SP&0x00FF
+                        self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
+                        self.insFiniteStateMachine = 'START'
 
             case 'CPSE':
                 self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
@@ -1755,13 +1803,6 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
 
-#pointer registers
-# R26 X-register Low Byte 
-# R27 X-register High Byte
-# R28 Y-register Low Byte
-# R29 Y-register High Byte
-# R30 Z-register Low Byte 
-# R31 Z-register High Byte 
 
             case 'MOV':
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
@@ -2425,35 +2466,55 @@ class SingleCycleATmega328P(py4hw.Logic):
             case 'SPM':
                 # must use SPMCSR
                 SELFPRGEN = self.SPMCSR & 0b1
-                PGERS = (self.SPMCSR>>1) & 0b1
-                PGWRT = (self.SPMCSR>>2) & 0b1
-                BLBSET = (self.SPMCSR>>3) & 0b1
-                RWWSRE = (self.SPMCSR>>4) & 0b1
-                RES = (self.SPMCSR>>5) & 0b1
-                RWWSB = 0
-                SPMIE = (self.SPMCSR>>7) & 0b1
+                PGERS = (self.SPMCSR >> 1) & 0b1
+                PGWRT = (self.SPMCSR >> 2) & 0b1
+                BLBSET = (self.SPMCSR >> 3) & 0b1
+                RWWSRE = (self.SPMCSR >> 4) & 0b1
+                RES = (self.SPMCSR >> 5) & 0b1
+                SPMIE = (self.SPMCSR >> 7) & 0b1
 
-                self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
+                self.Z = (self.reg[30] & 0xFF) | ((self.reg[31] & 0xFF) << 8)
 
-                if SELFPRGEN == 1 : # Enabling the writing
+                word_addr = self.Z >> 1
 
-                    if (PGERS == 1) and (PGWRT == 0): # Page Erase
-                        self.flash[self.A] =  0;
+                page_offset = word_addr % self.PAGE_SIZE_WORDS
+                page_base_addr = word_addr - page_offset
 
+                if SELFPRGEN == 1: # SPM operation is enabled
 
-                        if SPMIE == 1:
-                            print("Interrupt")
-                
+                    # --- 1. PAGE ERASE ---
+                    if (PGERS == 1) and (PGWRT == 0): 
+                        # Wipe the entire page in actual flash memory
+                        for i in range(self.PAGE_SIZE_WORDS):
+                            if (page_base_addr + i) < len(self.flash):
+                                self.flash[page_base_addr + i] = 0xFFFF
+                        
+                    # --- 2. PAGE WRITE ---
+                    elif (PGERS == 0) and (PGWRT == 1): 
+                        # Commit the temporary buffer to the flash memory page
+                        for i in range(self.PAGE_SIZE_WORDS):
+                            if (page_base_addr + i) < len(self.flash):
+                                # Flash can only change bits from 1 to 0. 
+                                # A bitwise AND correctly simulates writing over existing data.
+                                self.flash[page_base_addr + i] &= self.temp_page_buffer[i]
+                        
+                        # Hardware auto-erases the temporary buffer after a Page Write
+                        self.temp_page_buffer = [0xFFFF] * self.PAGE_SIZE_WORDS
 
-                    if (PGERS == 0) and (PGWRT == 1) : # Page Write
-                        self.flash[self.A] = (self.reg[0]&0xFF)|((self.reg[1]<<8)&0xFF) #verify the order of the registers
+                    # --- 3. FILL TEMPORARY BUFFER ---
+                    elif (PGERS == 0) and (PGWRT == 0) and (BLBSET == 0):
+                        # Load the data word from R1:R0 (R0 is LSB, R1 is MSB)
+                        data_word = (self.reg[0] & 0xFF) | ((self.reg[1] & 0xFF) << 8)
+                        
+                        # Write into the temporary buffer at the specified offset
+                        self.temp_page_buffer[page_offset] = data_word
 
+                    # Hardware auto-clears the SPM enable bit after execution
+                    self.SPMCSR &= ~0b1
 
-                        if SPMIE == 1:
-                            print("Interrupt")
-
-                
-
+                    # Trigger interrupt if enabled
+                    if SPMIE == 1:
+                        print("SPM Interrupt Triggered")
 
                 self.pc += 1
 
@@ -2489,7 +2550,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     # increment by one if the address is invalid    
                     self.pc+=1
-
             case 'OUT':
                 self.Rr = (self.ins>>4)&0b11111
                 self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
@@ -2526,7 +2586,6 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     # increment by one if the address is invalid
                     self.pc+=1
-
             case 'PUSH':
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = (self.SPH<<8) | (self.SPL&0xFF)

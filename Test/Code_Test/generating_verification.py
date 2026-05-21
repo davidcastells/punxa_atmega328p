@@ -4,7 +4,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 import time 
 from rich.progress import Progress
-import time
+
 
 
 

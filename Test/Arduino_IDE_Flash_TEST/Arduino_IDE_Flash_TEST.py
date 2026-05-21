@@ -15,7 +15,7 @@ STK_LEAVE_PROGMODE  = b'\x51'
 STK_LOAD_ADDRESS    = b'\x55'
 STK_UNIVERSAL       = b'\x56'
 STK_PROG_PAGE       = b'\x64'
-STK_READ_PAGE       = b'\x74'  # <-- The missing read command!
+STK_READ_PAGE       = b'\x74'  
 STK_READ_SIGN       = b'\x75'
 
 SIG_ATMEGA328P = b'\x1E\x95\x0F'
@@ -191,9 +191,9 @@ def load_flash_from_bin(Verbose=False):
 
 import py4hw
 import os
-from SingleCycle.runCycle import *
-from Source.Memory import *
-from Source.Instruction_Decoder import *
+from punxa_atmega328p.SingleCycle.runCycle import *
+from punxa_atmega328p.Memory import *
+from punxa_atmega328p.Instruction_Decoder import *
 import ast
 
 PASS_OR_FAIL_LIST =[]

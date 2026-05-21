@@ -1,4 +1,4 @@
-Source/cpu_env
+cpu_env
 
 memoryDump.txt
 
@@ -11,3 +11,5 @@ RamMemoryDump.txt
 FlashMemoryDump.txt
 
 Implementation/__pycache__
+
+Test/Code_Test/EXPECTED_REGISTER_VALUES_FS.txt

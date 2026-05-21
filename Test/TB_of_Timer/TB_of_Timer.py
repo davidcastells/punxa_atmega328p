@@ -1,19 +1,190 @@
 import py4hw
-from Source.Timers import *
-from Source.Memory import * 
+from punxa_atmega328p.Timers import *
+from punxa_atmega328p.Memory import * 
 
 
 #Parameters for the test bench 
-Verbose = 7
-while Verbose == 7:
-    print("Verbose? Y/N")
-    responce = input()
-    if (responce == 'Y') or (responce == 'y'):
-        Verbose = True 
-    elif (responce == 'N') or (responce == 'n'):
-        Verbose = False 
+Verbose = False 
+#while Verbose == 7:
+#    print("Verbose? Y/N")
+#    responce = input()
+#    if (responce == 'Y') or (responce == 'y'):
+#        Verbose = True 
+#    elif (responce == 'N') or (responce == 'n'):
+#        Verbose = False 
 
 
+def TestBench_of_Timer0():
+
+    sys0 = py4hw.HWSystem()
+
+    TIMER0 = TimerCounter0(sys0,'TIMER0',interface0,INSTYPE0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
+
+    interface0 = MemoryInterface(sys0,'interface0',8,16)
+
+    OCF0B = py4hw.Wire( sys0,'OCF0B',1)
+    OCF0A = py4hw.Wire( sys0,'OCF0A',1)
+    TOV0 = py4hw.Wire( sys0,'TOV0',1)
+
+    CURRENT_TEST = 'START'
+    CURRENT_STEP = 'SETUP'
+
+
+    INS_counter = 0
+
+    TEST_RESULTS = []
+
+    Testing = True
+
+    while Testing:
+
+        match self.CURRENT_TEST:
+
+            case 'START':
+                print("Starting Test Bench of Timer0")
+
+
+                self.CURRENT_TEST = 'TEST1'
+            case 'TEST1':
+                print("TEST1:")
+
+                match CURRENT_STEP:
+
+                    case 'SETUP' : 
+                        ## Loading the config values in memory
+                        TIMER0.TCCR0B = 0x01
+                        TIMER0.TCCR0A = 0x00
+
+                        TIMER0.OCR0A = 64
+                        TIMER0.OCR0B = 128
+
+                        TIMER0.TCNT0 = 0
+    
+                        ERROR_LIST = []
+                        TEST = True 
+
+                    case 'TESTING':
+                        ## Testing
+                        for i in range(250):
+                            # counter test 
+                            if TIMER0.TCNT0 != i:
+                                TEST = False
+                                ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                            #Output A 
+                            if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                                if OC0A.get() == 0:# error val
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                            else:
+                                if OC0A.get() == 1:
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+            
+                            #Output B 
+                            if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                                if OC0A.get() == 0:# error val
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                            else:
+                                if OC0A.get() == 1:
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                            #Interrupt A
+                            if (TIMER0.TCNT0-1) == TIMER.OCR0A:
+                                if OCF0A.get() == 0:# error val
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                            else:
+                                if OCF0A.get() == 1:
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                            #Interrupt B 
+                            if (TIMER0.TCNT0-1) == TIMER.OCR0A:
+                                if OCF0A.get() == 0:# error val
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                            else:
+                                if OCF0A.get() == 1:
+                                    TEST = False
+                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                            #Interrupt OVF
+                            if (TIMER0.TCNT0) == 0xFF:
+                                if TOV0.get() == 0:# error val
+                                    TEST = False
+                                    ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+
+
+                    case 'STORING_DATA':
+
+                        TEST_RESULTS.append(TEST)
+                        TEST_RESULTS.append(ERROR_LIST)
+
+                        ## Storing data
+
+
+                        self.CURRENT_TEST = 'TEST2'
+            case 'TEST2':
+                print("TEST2:")
+
+                self.CURRENT_TEST = 'TEST3'
+            case 'TEST3':
+                print("TEST3:")
+
+                self.CURRENT_TEST = 'TEST4'
+            case 'TEST4':
+                print("TEST4:")
+
+                self.CURRENT_TEST = 'TEST5'
+            case 'TEST5':
+                print("TEST5:")
+
+                self.CURRENT_TEST = 'TEST6'
+            case 'TEST6':
+                print("TEST6:")
+
+                self.CURRENT_TEST = 'TEST7'
+            case 'TEST7':
+                print("TEST7:")
+
+                self.CURRENT_TEST = 'TEST8'
+            case 'TEST8':
+                print("TEST8:")
+
+                self.CURRENT_TEST = 'TEST9'
+            case 'TEST9':
+                print("TEST9:")
+
+                self.CURRENT_TEST = 'TEST10'
+            case 'TEST10':
+                print("TEST10:")
+
+                self.CURRENT_TEST = 'TEST11'
+            case 'TEST11':
+                print("TEST11:")
+
+                self.CURRENT_TEST = 'TEST12'
+            case 'TEST12':
+                print("TEST12:")
+
+                self.CURRENT_TEST = 'TEST13'
+            case 'TEST13':
+                print("TEST13:")
+
+                self.CURRENT_TEST = 'TEST14' 
+            case 'TEST14':
+                print("TEST14:")
+
+                self.CURRENT_TEST = 'FINAL'
+
+            case 'FINAL':
+                print("TEST SUMMARY:")
+
+                self.CURRENT_TEST = 'FINAL'
+    
 
 #Timer 0 
 TIMER0_READ_TEST = [
@@ -3221,6 +3392,8 @@ TIMER0_T0_TEST = [
 ]
 TIMER0_SIGNALS = []
 
+
+
 if Verbose == True:
     length_of_test = 0
     print("=============TIMER0_TEST=============")
@@ -3232,6 +3405,8 @@ if Verbose == True:
     print("Lenght of READ_DATA_CORRECT: {length} clk | Equal to others: {match}".format(length = len(TIMER0_READ_DATA_CORRECT),match = (length_of_test == len(TIMER0_READ_DATA_CORRECT))))
     print("Lenght of ADDRESS_TEST_FULL: {length} clk | Equal to others: {match}".format(length = len(TIMER0_ADDRESS_TEST_FULL),match = (length_of_test == len(TIMER0_ADDRESS_TEST_FULL))))
     print("Lenght of TIMER0_T0_TEST: {length} clk | Equal to others: {match}".format(length = len(TIMER0_T0_TEST),match = (length_of_test == len(TIMER0_T0_TEST))))
+
+
 
 #Timer 1 
 TIMER1_READ_TEST = []
@@ -5390,7 +5565,7 @@ if Verbose == True:
 
 SIGNALS = []
 
-sys = py4hw.HWSystem()
+#sys = py4hw.HWSystem()
 
 
 #interface1 = MemoryInterface(sys,'interface1',8,16)
@@ -5400,21 +5575,21 @@ sys = py4hw.HWSystem()
 
 
 #TIMER0
-interface0 = MemoryInterface(sys,'interface0',8,16)
+#interface0 = MemoryInterface(sys,'interface0',8,16)
 
-OCF0B = py4hw.Wire( sys,'OCF0B',1)
-OCF0A = py4hw.Wire( sys,'OCF0A',1)
-TOV0 = py4hw.Wire( sys,'TOV0',1)
-SIGNALS.append(OCF0B)
-SIGNALS.append(OCF0A)
-SIGNALS.append(TOV0)
+#OCF0B = py4hw.Wire( sys,'OCF0B',1)
+#OCF0A = py4hw.Wire( sys,'OCF0A',1)
+#TOV0 = py4hw.Wire( sys,'TOV0',1)
+#SIGNALS.append(OCF0B)
+#SIGNALS.append(OCF0A)
+#SIGNALS.append(TOV0)
 
-SIGNALS.append(interface0.write)
-SIGNALS.append(interface0.read)
-SIGNALS.append(interface0.address)
-SIGNALS.append(interface0.write_data)
-SIGNALS.append(interface0.read_data)
-SIGNALS.append(interface0.resp)
+#SIGNALS.append(interface0.write)
+#SIGNALS.append(interface0.read)
+#SIGNALS.append(interface0.address)
+#SIGNALS.append(interface0.write_data)
+#SIGNALS.append(interface0.read_data)
+#SIGNALS.append(interface0.resp)
 
 #TIMER1
 #TIMER1_SIGNALS.append(interface1.write)
@@ -5463,7 +5638,7 @@ SIGNALS.append(T0)
 #SIGNALS.append(T2)
 
 
-TIMER0 = TimerCounter0(sys,'TIMER0',interface0,INSTYPE0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
+#TIMER0 = TimerCounter0(sys,'TIMER0',interface0,INSTYPE0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
 #TIMER1 = TimerCounter1(sys,'TIMER1',interface0,INSTYPE1,OC1B,OC1A,T1)
 #TIMER2 = TimerCounter2(sys,'TIMER2',interface0,INSTYPE2,OC2B,OC2A,T2)
 
@@ -5502,3 +5677,5 @@ wvf = py4hw.Waveform(sys,'wvf',SIGNALS)
 
 sys.getSimulator().clk(len(TIMER0_WRITE_DATA_TEST))
 wvf.gui()
+
+
