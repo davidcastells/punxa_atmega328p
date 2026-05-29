@@ -1,5 +1,18 @@
 # THE MC IS : ATMEGA328P
 
+This is a 8-bit RISC architecture.
+It has the following internal registers.
+
+| Registers | Width | Description |
+|----|----|----|
+| R0 - R25 | 8 | Regular registers |
+| R26 - R31 | 8 | Regular registers + indirect addresses X(R27,R26), Y(R29,R28), Z(R31,R30) |
+| PC | 14 | program counter 16 k words |
+| IR | 16 | instruction register |
+| SREG | 8 | Global Interrupt Enable [7], Bit Copy Storage [6], Half Carry Flag [5], Sign bit [4], 2's comp overflow [3], Negative [2], Zero [1], Carry [0] |
+| SP | 16 | Stack pointer, split in SPH, SPL |
+
+
 ## Functional caracteristics
 
 AVR Core : AVRe+ 

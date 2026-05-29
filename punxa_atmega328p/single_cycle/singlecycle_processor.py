@@ -28,6 +28,9 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.pc = 0x3F00 ##bootloarder
         self.reg = [0]*32
         # self.ram = [0]*2048
+        
+        
+        # @todo Flash should be external to the processor
         self.flash = [0]*16384
 
 
