@@ -21,7 +21,7 @@ clear_loop:
     CPI R29, 0x09
     BRNE clear_loop
     
-    ; --- 2. START YOUR TESTS ---
+    ; ---  START TESTS ---
     JMP Sequancer
 arithmetic:
     LDI R24,120  ;ADD
@@ -872,7 +872,6 @@ Sequancer:
 
 asm_function:
     ; --- 3. SAFE HALT ---
-    ; Replace the final RET with an infinite loop so the CPU doesn't crash
 halt:
     RJMP halt 
 

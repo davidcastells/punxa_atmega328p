@@ -1,4 +1,4 @@
 #Define the __all__ variable
-__all__ = ['runCycle.py']
+__all__ = ['singlecycle_processor.py']
 
-from ...SingleCycle import runCycle
+from singlecycle_processor import SingleCycleATmega328P

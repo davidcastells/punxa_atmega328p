@@ -29,11 +29,10 @@ import py4hw.debug
 
 #INSTYPE 0 for IO | 1 for LS
 class GPIO(py4hw.Logic):
-    def __init__(self,parent,name:str,memory:MemoryInterface,INSTYPE):
+    def __init__(self,parent,name:str,memory:MemoryInterface):
         super().__init__(parent,name)
 
         self.interface = self.addInterfaceSink('port',memory)
-        self.INSTYPE = self.addIn('INSTYPE',INSTYPE)
         #GENERAL GPIOR ADDRESSES 
         self.GPIOR2 = 0
         self.GPIOR2_addr_IO = 0x2B
@@ -86,13 +85,9 @@ class GPIO(py4hw.Logic):
         self.ADDR = 0
         #Interrupts
 
-    
-
-        
-
     def clock(self):
         self.ADDR = self.interface.address.get()
-        if ((self.ADDR == self.GPIOR2_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.GPIOR2_addr_LS) and self.INSTYPE.get() == 1):
+        if ((self.ADDR == self.GPIOR2_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.GPIOR2_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.GPIOR2)
                 self.interface.resp.prepare(0)
@@ -101,7 +96,7 @@ class GPIO(py4hw.Logic):
                 self.interface.resp.prepare(0)
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.GPIOR1_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.GPIOR1_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.GPIOR1_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.GPIOR1_addr_LS)and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.GPIOR1)
                 self.interface.resp.prepare(0)
@@ -110,7 +105,7 @@ class GPIO(py4hw.Logic):
                 self.interface.resp.prepare(0)
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.GPIOR0_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.GPIOR0_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.GPIOR0_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.GPIOR0_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):
                 self.interface.read_data.prepare(self.GPIOR0)
                 self.interface.resp.prepare(0)
@@ -118,7 +113,7 @@ class GPIO(py4hw.Logic):
                 self.GPIOR0 = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)   
-        elif ((self.ADDR == self.PORTB_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PORTB_addr_LS) and self.INSTYPE.get() == 1): #PORTB
+        elif ((self.ADDR == self.PORTB_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PORTB_addr_LS) and self.interface.instype.get() == 1): #PORTB
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.PORTB)
                 self.interface.resp.prepare(0)
@@ -128,7 +123,7 @@ class GPIO(py4hw.Logic):
                 self.interface.resp.prepare(0)
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.DDRB_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.DDRB_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.DDRB_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.DDRB_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.DDRB)
                 self.interface.resp.prepare(0)
@@ -137,7 +132,7 @@ class GPIO(py4hw.Logic):
                 self.interface.resp.prepare(0)
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.PINB_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PINB_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.PINB_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PINB_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0): #read
                 self.interface.read_data.prepare(self.PINB)
                 self.interface.resp.prepare(0)
@@ -145,7 +140,7 @@ class GPIO(py4hw.Logic):
                 self.PINB = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)  
-        elif ((self.ADDR == self.PORTC_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PORTC_addr_LS) and self.INSTYPE.get() == 1): #PORTC
+        elif ((self.ADDR == self.PORTC_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PORTC_addr_LS) and self.interface.instype.get() == 1): #PORTC
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.PORTC)
                 self.interface.resp.prepare(0)
@@ -153,7 +148,7 @@ class GPIO(py4hw.Logic):
                 self.PORTC = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.DDRC_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.DDRC_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.DDRC_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.DDRC_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.DDRC)
                 self.interface.resp.prepare(0)
@@ -161,7 +156,7 @@ class GPIO(py4hw.Logic):
                 self.DDRC = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.PINC_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PINC_addr_LS) and self.INSTYPE.get() == 1):   #PORTD
+        elif ((self.ADDR == self.PINC_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PINC_addr_LS) and self.interface.instype.get() == 1):   #PORTD
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0): #read
                 self.interface.read_data.prepare(self.PINC)
                 self.interface.resp.prepare(0)
@@ -169,7 +164,7 @@ class GPIO(py4hw.Logic):
                 self.PINC = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)        
-        elif ((self.ADDR == self.PORTD_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PORTD_addr_LS) and self.INSTYPE.get() == 1): 
+        elif ((self.ADDR == self.PORTD_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PORTD_addr_LS) and self.interface.instype.get() == 1): 
             print("test1")
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.PORTD)
@@ -178,16 +173,16 @@ class GPIO(py4hw.Logic):
                 self.PORTD = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.DDRD_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.DDRD_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.DDRD_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.DDRD_addr_LS) and self.interface.instype.get() == 1):
             print("test2")
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0):  #read
                 self.interface.read_data.prepare(self.DDRD)
                 self.interface.resp.prepare(0)
-            elif ((self.interface.read.get() == 0) and self.INSTYPE == 0) and ((self.interface.write.get() == 1) and self.INSTYPE == 1):  #write
+            elif ((self.interface.read.get() == 0) and self.interface.instype.get() == 0) and ((self.interface.write.get() == 1) and self.interface.instype.get() == 1):  #write
                 self.DDRD = self.interface.write_data.get()
             else:
                 self.interface.resp.prepare(1)
-        elif ((self.ADDR == self.PIND_addr_IO) and self.INSTYPE.get() == 0) or ((self.ADDR == self.PIND_addr_LS) and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.PIND_addr_IO) and self.interface.instype.get() == 0) or ((self.ADDR == self.PIND_addr_LS) and self.interface.instype.get() == 1):
             if (self.interface.read.get() == 1) and (self.interface.write.get() == 0): #read
                 self.interface.read_data.prepare(self.PIND)
                 self.interface.resp.prepare(0)
@@ -197,10 +192,6 @@ class GPIO(py4hw.Logic):
                 self.interface.resp.prepare(1)
         else:
                 self.interface.resp.prepare(1)                
-
-
-
-
 
 #print("else")
 #        else:

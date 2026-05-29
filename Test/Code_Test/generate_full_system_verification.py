@@ -184,7 +184,6 @@ with Progress() as p:
         USART0_TEST.append(UDR0_val)
         ThisCycle.append(USART0_TEST)
 
-
         #SPI
         SPCR_val = dev.getRWMem(0x4C)
         SPI_TEST.append(SPCR_val)
@@ -193,7 +192,6 @@ with Progress() as p:
         SPDR_val = dev.getRWMem(0x4E)
         SPI_TEST.append(SPDR_val)
         ThisCycle.append(SPI_TEST)
-
 
         #ADC
         ADMUX_val = dev.getRWMem(0x7C)
@@ -207,8 +205,6 @@ with Progress() as p:
         ADCH_val = dev.getRWMem(0x79)
         ADC_TEST.append(ADCH_val)
         ThisCycle.append(ADC_TEST)
-
-
 
         #GPIO PORTB
         PINB_val = dev.getRWMem(0x03)
@@ -254,11 +250,6 @@ with Progress() as p:
         PCMSK2_val = dev.getRWMem(0x6D)
         INTERRUPT_TEST.append(PCMSK2_val)
         ThisCycle.append(INTERRUPT_TEST)
-
-
-
-
-
 
         FULL_SYSTEM_TEST_EXPECTED_REGISTER_VALUES.append(ThisCycle)
         p.update(t,advance=1)

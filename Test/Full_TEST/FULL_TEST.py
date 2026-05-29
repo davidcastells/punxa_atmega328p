@@ -5,10 +5,11 @@
 
 import py4hw
 import os
-from punxa_atmega328p.SingleCycle.runCycle import *
+from punxa_atmega328p.single_cycle.singlecycle_processor import *
 from punxa_atmega328p.Memory import *
 from punxa_atmega328p.Instruction_Decoder import *
 import ast
+
 #Import all the peripherals
 from punxa_atmega328p.Bus import *
 from punxa_atmega328p.GPIO import *
@@ -110,71 +111,73 @@ def Build_Hardware():
     
     sys = py4hw.HWSystem()
 
-    #mem = MemoryInterface(sys,'port0',8,16)
-    mem = MemoryInterface(sys,'mem',8,16)
+    port_C = MemoryInterface(sys,'port_C',8,16)
 
-    CPU = SingleCycleATmega328P(sys,'CPU',mem)#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY)
+    CPU = SingleCycleATmega328P(sys,'CPU',port_C)#INT0,INT1,PCINT0,PCINT1,PCINT2,WDT,TIMER2_COMPA,TIMER2_COMPB,TIMER2_OVF,TIMER1_CAPT,TIMER1_COMPA,TIMER1_COMPB,TIMER1_OVF,TIMER0_COMPA,TIMER0_COMPB,TIMER0_OVF,SPI_STC,USART_RX,USART_UDRE,USART_TX,ADC,EE_READY,ANALOG_COMP,TWI,SPM_READY)
     
-    #port_B = MemoryInterface(sys,'port_B',8,16)
+    port_B = MemoryInterface(sys,'port_B',8,16)
 
-    RAM = Ram_Memory(sys,'mem',8,16,mem)
+    RAM = Ram_Memory(sys,'mem',8,16,port_B)
+
+
 
 
     #USART0 
-    #USART_rx = py4hw.Wire(sys, 'USART_rx', 1)
-    #USART_tx = py4hw.Wire(sys, 'USART_tx', 1)
-    #USART_clk = py4hw.Wire(sys,'USART_clk',1)
-    #RXC_int = py4hw.Wire(sys,'RXC_int',1)
-    #TXC_int = py4hw.Wire(sys,'TXC_int',1)
-    #UDRE_int = py4hw.Wire(sys,'UDRE_int',1)
-    #port_U = MemoryInterface(sys,'port_U',8,16)
-
-    #USART0 = USART(sys,"UART_DUT",port_U ,USART_rx,USART_tx,USART_clk,RXC_int,TXC_int,UDRE_int)
+    USART_rx = py4hw.Wire(sys, 'USART_rx', 1)
+    USART_tx = py4hw.Wire(sys, 'USART_tx', 1)
+    USART_clk = py4hw.Wire(sys,'USART_clk',1)
+    RXC_int = py4hw.Wire(sys,'RXC_int',1)
+    TXC_int = py4hw.Wire(sys,'TXC_int',1)
+    UDRE_int = py4hw.Wire(sys,'UDRE_int',1)
+    port_U = MemoryInterface(sys,'port_U',8,16)
+    USART0 = USART(sys,"UART_DUT",port_U ,USART_rx,USART_tx,USART_clk,RXC_int,TXC_int,UDRE_int)
 
 
     #Timer0
-    #OC0B = py4hw.Wire(sys,'OC0B',1)
-    #OC0A = py4hw.Wire(sys,'OC0A',1)
-    #T0 = py4hw.Wire(sys,'T0',1)
-    #OCF0B = py4hw.Wire(sys,'OCF0B',1)
-    #OCF0A = py4hw.Wire(sys,'OCF0A',1)
-    #TOV0 = py4hw.Wire(sys,'TOV0',1)
-    #port_T0= MemoryInterface(sys,'prot_T0',8,16)
-
-    #Timer0 = TimerCounter0(sys,"Timer0",port_T0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
+    OC0B = py4hw.Wire(sys,'OC0B',1)
+    OC0A = py4hw.Wire(sys,'OC0A',1)
+    T0 = py4hw.Wire(sys,'T0',1)
+    OCF0B = py4hw.Wire(sys,'OCF0B',1)
+    OCF0A = py4hw.Wire(sys,'OCF0A',1)
+    TOV0 = py4hw.Wire(sys,'TOV0',1)
+    port_T0= MemoryInterface(sys,'prot_T0',8,16)
+    Timer0 = TimerCounter0(sys,"Timer0",port_T0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
 
     #Timer1
-    #OC1B = py4hw.Wire(sys,'OC1B',1)
-    #OC1A = py4hw.Wire(sys,'OC1A',1)
-    #T1 = py4hw.Wire(sys,'T1',1)
-    #OCF1B = py4hw.Wire(sys,'OCF1B',1)
-    #OCF1A = py4hw.Wire(sys,'OCF1A',1)
-    #TOV1 = py4hw.Wire(sys,'TOV1',1)
-    #port_T1= MemoryInterface(sys,'port_T1',8,16)
+    OC1B = py4hw.Wire(sys,'OC1B',1)
+    OC1A = py4hw.Wire(sys,'OC1A',1)
+    T1 = py4hw.Wire(sys,'T1',1)
+    OCF1B = py4hw.Wire(sys,'OCF1B',1)
+    OCF1A = py4hw.Wire(sys,'OCF1A',1)
+    TOV1 = py4hw.Wire(sys,'TOV1',1)
+    port_T1= MemoryInterface(sys,'port_T1',8,16)
+    Timer1 = TimerCounter1(sys,"Timer1",port_T1,OC1B,OC1A,T1,OCF1B,OCF1A,TOV1)
 
-    #Timer1 = TimerCounter1()
     #Timer2
-    #OC2B = py4hw.Wire(sys,'OC2B',1)
-    #OC2A = py4hw.Wire(sys,'OC2A',1)
-    #T2 = py4hw.Wire(sys,'T2',1)
-    #OCF2B = py4hw.Wire(sys,'OCF2B',1)
-    #OCF2A = py4hw.Wire(sys,'OCF2A',1)
-    #TOV2 = py4hw.Wire(sys,'TOV2',1)
-    #Timer2 = TimerCounter2()
+    OC2B = py4hw.Wire(sys,'OC2B',1)
+    OC2A = py4hw.Wire(sys,'OC2A',1)
+    T2 = py4hw.Wire(sys,'T2',1)
+    OCF2B = py4hw.Wire(sys,'OCF2B',1)
+    OCF2A = py4hw.Wire(sys,'OCF2A',1)
+    TOV2 = py4hw.Wire(sys,'TOV2',1)
+    port_T2= MemoryInterface(sys,'prot_T2',8,16)
+    Timer2 = TimerCounter2(sys,"Timer2",port_T2,OC2B,OC2A,T2,OCF2B,OCF2A,TOV2)
 
-    #SPI
+    #Interrupt
 
-
-    #EEPROM
-
+    slaves = []
+    slaves.append(port_B)
+    slaves.append(port_U)
+    slaves.append(port_T0)
+    slaves.append(port_T1)
+    slaves.append(port_T2)
+    Connection = MultiplexedBus(sys,"Bus",port_C,slaves)
 
 
     #port_S = MemoryInterface(sys,'port_S',8,16)
     #port_A = MemoryInterface(sys,'port_A',8,16)
     #port_G = MemoryInterface(sys,'port_G',8,16)
 
-
-    #port_T2= MemoryInterface(sys,'prot_T2',8,16)
 
 
 #SIGNALS = []

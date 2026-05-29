@@ -50,7 +50,6 @@ class MultiplexedBus(Logic):
 
             if(addr >= start and addr <= stop and (read > 0 or write > 0)):
  
-
                 slave.address.put(addr)
                 slave.read.put(read)
                 slave.write.put(write)
@@ -62,9 +61,9 @@ class MultiplexedBus(Logic):
                 handled = True
 
             else:
-                    slave.address.put(0)
-                    slave.read.put(0)
-                    slave.write.put(0)
-                    slave.write_data.put(0)
-                    slave.be.put(0)
+                slave.address.put(0)
+                slave.read.put(0)
+                slave.write.put(0)
+                slave.write_data.put(0)
+                slave.be.put(0)
                     

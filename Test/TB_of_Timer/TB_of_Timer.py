@@ -18,16 +18,46 @@ def TestBench_of_Timer0():
 
     sys0 = py4hw.HWSystem()
 
-    TIMER0 = TimerCounter0(sys0,'TIMER0',interface0,INSTYPE0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
+    SIGNALS0 = []
+
+    OCF0B = py4hw.Wire( sys0,'OCF0B',1)
+    SIGNALS0.append(OCF0B)
+    OCF0A = py4hw.Wire( sys0,'OCF0A',1)
+    SIGNALS0.append(OCF0A)
+    TOV0 = py4hw.Wire( sys0,'TOV0',1)
+    SIGNALS0.append(TOV0)
+
+    OC0A = py4hw.Wire(sys0,'OC0A',1)
+    SIGNALS0.append(OC0A)
+    OC0B = py4hw.Wire(sys0,'OC0B',1)
+    SIGNALS0.append(OC0B)
+    T0 = py4hw.Wire(sys0,'T0',1)
+    SIGNALS0.append(T0)
 
     interface0 = MemoryInterface(sys0,'interface0',8,16)
 
-    OCF0B = py4hw.Wire( sys0,'OCF0B',1)
-    OCF0A = py4hw.Wire( sys0,'OCF0A',1)
-    TOV0 = py4hw.Wire( sys0,'TOV0',1)
+    TIMER0 = TimerCounter0(sys0,'TIMER0',interface0,OC0B,OC0A,T0,OCF0B,OCF0A,TOV0)
+
+
+
+    SIGNALS0.append(interface0.write)
+    SIGNALS0.append(interface0.read)
+    SIGNALS0.append(interface0.address)
+    SIGNALS0.append(interface0.write_data)
+    SIGNALS0.append(interface0.read_data)
+    SIGNALS0.append(interface0.resp)
 
     CURRENT_TEST = 'START'
     CURRENT_STEP = 'SETUP'
+
+    wvf = py4hw.Waveform(sys0,'wvf',SIGNALS0)
+
+
+    #sch = py4hw.Schematic(sys)
+    #sch.draw()
+
+
+    #sys.getSimulator().clk(len(TIMER0_WRITE_DATA_TEST))
 
 
     INS_counter = 0
@@ -35,155 +65,1399 @@ def TestBench_of_Timer0():
     TEST_RESULTS = []
 
     Testing = True
+    with open("Test/TB_of_Timer/Test_Results.txt",'w+') as results:
+        while Testing:
 
-    while Testing:
-
-        match self.CURRENT_TEST:
-
-            case 'START':
-                print("Starting Test Bench of Timer0")
-
-
-                self.CURRENT_TEST = 'TEST1'
-            case 'TEST1':
-                print("TEST1:")
-
-                match CURRENT_STEP:
-
-                    case 'SETUP' : 
-                        ## Loading the config values in memory
-                        TIMER0.TCCR0B = 0x01
-                        TIMER0.TCCR0A = 0x00
-
-                        TIMER0.OCR0A = 64
-                        TIMER0.OCR0B = 128
-
-                        TIMER0.TCNT0 = 0
-    
-                        ERROR_LIST = []
-                        TEST = True 
-
-                    case 'TESTING':
-                        ## Testing
-                        for i in range(250):
-                            # counter test 
-                            if TIMER0.TCNT0 != i:
-                                TEST = False
-                                ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
-
-                            #Output A 
-                            if TIMER0.TCNT0 >= TIMER0.OCR0A:
-                                if OC0A.get() == 0:# error val
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
-                            else:
-                                if OC0A.get() == 1:
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
             
-                            #Output B 
-                            if TIMER0.TCNT0 >= TIMER0.OCR0B:
-                                if OC0A.get() == 0:# error val
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
-                            else:
-                                if OC0A.get() == 1:
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+            match CURRENT_TEST:
 
-                            #Interrupt A
-                            if (TIMER0.TCNT0-1) == TIMER.OCR0A:
-                                if OCF0A.get() == 0:# error val
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
-                            else:
-                                if OCF0A.get() == 1:
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
-
-                            #Interrupt B 
-                            if (TIMER0.TCNT0-1) == TIMER.OCR0A:
-                                if OCF0A.get() == 0:# error val
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
-                            else:
-                                if OCF0A.get() == 1:
-                                    TEST = False
-                                    ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
-                            #Interrupt OVF
-                            if (TIMER0.TCNT0) == 0xFF:
-                                if TOV0.get() == 0:# error val
-                                    TEST = False
-                                    ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+                case 'START':
+                    print("Starting Test Bench of Timer0")
 
 
 
-                    case 'STORING_DATA':
+                    CURRENT_TEST = 'TEST0'
+                case 'TEST0':# TEST0 :Normal mode Compare Match Output B disconnected and A disconnected (writing using Ls to load data) | No prescaling (X1)
+                    results.write("TEST0\n")
+                    #Setup
+                    ## Loading the config values in memory
+                    TIMER0.TCCR0A = 0x00
+                    TIMER0.TCCR0B = 0x01
 
-                        TEST_RESULTS.append(TEST)
-                        TEST_RESULTS.append(ERROR_LIST)
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
 
-                        ## Storing data
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                    last_OC0A = 0
+                    last_OC0B = 0
+
+                    ## Testing
+                    for i in range(256):
+                        # counter test 
+
+                        if TIMER0.TCNT0 != i%255:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i%255))
 
 
-                        self.CURRENT_TEST = 'TEST2'
-            case 'TEST2':
-                print("TEST2:")
+                        #Output A
+                        if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OC0A = {} expected {}".format(1,0))
 
-                self.CURRENT_TEST = 'TEST3'
-            case 'TEST3':
-                print("TEST3:")
+                        #Output B 
+                        if OC0B.get() == 1:# error val
+                            TEST = False
+                            ERROR_LIST.append("OC0B = {} expected {}".format(1,0))
 
-                self.CURRENT_TEST = 'TEST4'
-            case 'TEST4':
-                print("TEST4:")
+                        #Interrupt A
+                        if (TIMER0.TCNT0) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}| iteration = {}".format(0,1,i))
 
-                self.CURRENT_TEST = 'TEST5'
-            case 'TEST5':
-                print("TEST5:")
+                        #Interrupt B 
+                        if (TIMER0.TCNT0) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}| iteration = {}".format(0,1,i))
 
-                self.CURRENT_TEST = 'TEST6'
-            case 'TEST6':
-                print("TEST6:")
 
-                self.CURRENT_TEST = 'TEST7'
-            case 'TEST7':
-                print("TEST7:")
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
 
-                self.CURRENT_TEST = 'TEST8'
-            case 'TEST8':
-                print("TEST8:")
+                        sys0.getSimulator().clk(1)
 
-                self.CURRENT_TEST = 'TEST9'
-            case 'TEST9':
-                print("TEST9:")
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
 
-                self.CURRENT_TEST = 'TEST10'
-            case 'TEST10':
-                print("TEST10:")
+                    while len(ITEM) > 0:
+                        print("")
 
-                self.CURRENT_TEST = 'TEST11'
-            case 'TEST11':
-                print("TEST11:")
+                    CURRENT_TEST = 'TEST1'
+                case 'TEST1':# TEST1 :Normal mode Compare Match Output B Toggle and A Toggle (writing using Ls to load data) | No prescaling (X2)
+                    results.write("TEST1\n")
+                    #Setup
+                    ## Loading the config values in memory
+                    TIMER0.TCCR0A = 0x00
+                    TIMER0.TCCR0B = 0x01
 
-                self.CURRENT_TEST = 'TEST12'
-            case 'TEST12':
-                print("TEST12:")
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
 
-                self.CURRENT_TEST = 'TEST13'
-            case 'TEST13':
-                print("TEST13:")
+                    TIMER0.TCNT0 = 0
 
-                self.CURRENT_TEST = 'TEST14' 
-            case 'TEST14':
-                print("TEST14:")
+                    ERROR_LIST = []
+                    TEST = True 
 
-                self.CURRENT_TEST = 'FINAL'
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
 
-            case 'FINAL':
-                print("TEST SUMMARY:")
+                    last_OC0A = 0
+                    last_OC0B = 0
 
-                self.CURRENT_TEST = 'FINAL'
+                    ## Testing
+                    for i in range(256):
+                        # counter test 
+
+                        if TIMER0.TCNT0 != i%255:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i%255))
+
+                        #Output A 
+                        if TIMER0.TCNT0 > TIMER0.OCR0A:
+                            if OC0A.get() == last_OC0A:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(last_OC0A,(1-last_OC0A)))
+                        else:
+                            last_OC0A = OC0A.get()
+
+        
+                        #Output B 
+                        if TIMER0.TCNT0 > TIMER0.OCR0B:
+                            if OC0B.get() == last_OC0B:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(last_OC0B,(1-last_OC0B)))
+                        else:
+                            last_OC0B = OC0B.get()
+
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+
+
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    ## Storing data
+                    CURRENT_TEST = 'TEST2'
+                case 'TEST2':# TEST2 :Normal mode Compare Match Output B Set and A Set (writing using Ls to load data) | No prescaling (X4)
+                    results.write("TEST2\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x50
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(250):
+                        # counter test 
+
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST3'
+                case 'TEST3':# TEST3 :Normal mode Compare Match Output B Clear and A Clear (writing using Ls to load data) | No prescaling (X3)
+                    results.write("TEST3\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xA0
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST4'
+                case 'TEST4': # TEST4 :Fast PWM Mode mode Compare Match Output B disconnected and A disconnected (writing using Ls to load data) | No prescaling (X5)
+                    results.write("TEST4\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x03
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST5'
+                case 'TEST5':# TEST5 :Fast PWM Mode mode Compare Match Output B disconnected and A (Normal port operation, OC0A disconnected) (writing using Ls to load data) | No prescaling (X6.1)
+                    results.write("TEST5\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x53
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST6'
+                case 'TEST6':# TEST6 :Fast PWM Mode mode Compare Match Output B disconnected and A (Toggle OC0A on compare match.) (writing using Ls to load data) | No prescaling (X6.2)
+                    results.write("TEST6\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x53
+                    TIMER0.TCCR0B = 0x09
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST7'
+                case 'TEST7':# TEST7 :Fast PWM Mode mode Compare Match Output B (Clear OC0B on compare match, set OC0B at BOTTOM,(non-inverting mode)) and A (Clear OC0A on compare match, set OC0A at BOTTOM,(non-inverting mode).) (writing using Ls to load data) | No prescaling (X7)
+                    results.write("TEST7\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xA3
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST8'
+                case 'TEST8':# TEST8 :Fast PWM Mode mode Compare Match Output B (Set OC0B on compare match, clear OC0B at BOTTOM,(inverting mode)) and A (Set OC0A on compare match, clear OC0A at BOTTOM,(inverting mode).) (writing using Ls to load data) | No prescaling (X8)
+                    results.write("TEST8\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xF3
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST9'
+                case 'TEST9':# TEST9 :Phase Correct PWM mode Compare Match Output B disconnected and A disconnected (writing using Ls) | No prescaling (X9)
+                    results.write("TEST9\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x01
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST10'
+                case 'TEST10':# TEST10 :Phase Correct PWM mode Compare Match Output B disconnected and A (Normal port operation, OC0A disconnected.) (writing using Ls) | No prescaling (X10.1)
+                    results.write("TEST10\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xA3
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST11'
+                case 'TEST11':# TEST11 :Phase Correct PWM mode Compare Match Output B disconnected and A (Toggle OC0A on compare match.) (writing using Ls) | No prescaling (X10.2)
+                    results.write("TEST11\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xA3
+                    TIMER0.TCCR0B = 0x09
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST12'
+                case 'TEST12':# TEST12 :Phase Correct PWM mode Compare Match Output B (Clear OC0B on compare match when up-counting. Set OC0B on compare match when down-counting.) and A (Clear OC0A on compare match when up-counting. Set OC0A on compare match when down-counting.) (writing using Ls) | No prescaling (X11)
+                    results.write("TEST12\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xA1
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST13'
+                case 'TEST13':# TEST13 :Phase Correct PWM mode Compare Match Output B (Set OC0B on compare match when up-counting. Clear OC0B on compare match when down-counting.) and A (Set OC0A on compare match when up-counting. Clear OC0A on compare match when down-counting.) (writing using Ls) | No prescaling (X12)
+                    results.write("TEST13\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xF3
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST14' 
+                case 'TEST14':# TEST14 :Phase Correct PWM mode Compare Match Output B (Set OC0B on compare match when up-counting. Clear OC0B on compare match when down-counting.) and A (Set OC0A on compare match when up-counting. Clear OC0A on compare match when down-counting.) (writing using Ls) | No prescaling (X13)
+                    results.write("TEST14\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0xF3
+                    TIMER0.TCCR0B = 0x01
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST15'
+                case 'TEST15':# TEST15 :Normal mode Compare Match Output B disconected and A disconected (writing using Ls) | External clock source on T0 pin. Clock on falling edge. (X14)
+                    results.write("TEST15\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x00
+                    TIMER0.TCCR0B = 0x07
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+
+                ## Testing
+                    for i in range(256):
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,i))
+
+                        #Output A 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0A:
+                            if OC0A.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OC0A.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+        
+                        #Output B 
+                        if TIMER0.TCNT0 >= TIMER0.OCR0B:
+                            if OC0B.get() == 1:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OC0B.get() == 0:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'TEST16'
+                case 'TEST16':# TEST16 :Normal mode Compare Match Output B disconected and A disconected (writing using Ls) | /8 prescaler (X15)
+                    results.write("TEST16\n")
+                    #Setup
+                    TIMER0.TCCR0A = 0x00
+                    TIMER0.TCCR0B = 0x02
+
+                    TIMER0.OCR0A = 64
+                    TIMER0.OCR0B = 128
+
+                    TIMER0.TCNT0 = 0
+
+                    ERROR_LIST = []
+                    TEST = True 
+
+                    TIMER0.TIMSK0 = 0b111
+                    TIMER0.TIFR0 = 0 # clear interrupts
+                    tick = 0 
+
+                ## Testing
+                    for i in range((256*8)*2):
+
+                        if (i//16) == 0 :
+                            tick += 1 
+                        # counter test 
+                        if TIMER0.TCNT0 != i:
+                            TEST = False
+                            ERROR_LIST.append("TCNT0 = {} expected {}".format(TIMER0.TCNT0,tick))
+
+                        #Output A 
+
+                        if OC0A.get() == 1:# error val
+                            TEST = False
+                            ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+
+        
+                        #Output B 
+                        if OC0B.get() == 1:# error val
+                            TEST = False
+                            ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+
+
+                        #Interrupt A
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0A:
+                            if OCF0A.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(0,1))
+                        else:
+                            if OCF0A.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0A = {} expected {}".format(1,0))
+
+                        #Interrupt B 
+                        if (TIMER0.TCNT0-1) == TIMER0.OCR0B:
+                            if OCF0B.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(0,1))
+                        else:
+                            if OCF0B.get() == 1:
+                                TEST = False
+                                ERROR_LIST.append("OCF0B = {} expected {}".format(1,0))
+                                
+                        #Interrupt OVF
+                        if (TIMER0.TCNT0) == 0xFF:
+                            if TOV0.get() == 0:# error val
+                                TEST = False
+                                ERROR_LIST.append("OVF = {} expected {}".format(0,1))
+
+                        sys0.getSimulator().clk(1)
+
+
+                    ## Storing data
+                    ITEM = []
+                    ITEM.append(TEST)
+                    ITEM.append(ERROR_LIST)
+                    results.write('%s\n' %ITEM)
+                    while len(ITEM) > 0:
+                        print("")
+
+                    CURRENT_TEST = 'FINAL'
+                case 'FINAL':
+                    print("TEST SUMMARY:")
+
+                    
+                    results.close()
+
+                    wvf.gui()
+                    Testing = False
+                    CURRENT_TEST = 'FINAL'
     
 
 #Timer 0 
@@ -3392,8 +4666,6 @@ TIMER0_T0_TEST = [
 ]
 TIMER0_SIGNALS = []
 
-
-
 if Verbose == True:
     length_of_test = 0
     print("=============TIMER0_TEST=============")
@@ -3405,8 +4677,6 @@ if Verbose == True:
     print("Lenght of READ_DATA_CORRECT: {length} clk | Equal to others: {match}".format(length = len(TIMER0_READ_DATA_CORRECT),match = (length_of_test == len(TIMER0_READ_DATA_CORRECT))))
     print("Lenght of ADDRESS_TEST_FULL: {length} clk | Equal to others: {match}".format(length = len(TIMER0_ADDRESS_TEST_FULL),match = (length_of_test == len(TIMER0_ADDRESS_TEST_FULL))))
     print("Lenght of TIMER0_T0_TEST: {length} clk | Equal to others: {match}".format(length = len(TIMER0_T0_TEST),match = (length_of_test == len(TIMER0_T0_TEST))))
-
-
 
 #Timer 1 
 TIMER1_READ_TEST = []
@@ -5563,15 +6833,13 @@ if Verbose == True:
     print("Lenght of ADDRESS_TEST_FULL: {length} clk | Equal to others: {match}".format(length = len(TIMER2_ADDRESS_TEST_FULL),match = (length_of_test == len(TIMER2_ADDRESS_TEST_FULL))))
     print("Lenght of TIMER0_T0_TEST: {length} clk | Equal to others: {match}".format(length = len(TIMER2_T2_TEST),match = (length_of_test == len(TIMER2_T2_TEST))))
 
-SIGNALS = []
+#SIGNALS = []
 
 #sys = py4hw.HWSystem()
 
 
 #interface1 = MemoryInterface(sys,'interface1',8,16)
 #interface2 = MemoryInterface(sys,'interface2',8,16)
-
-
 
 
 #TIMER0
@@ -5607,25 +6875,25 @@ SIGNALS = []
 #TIMER2_SIGNALS.append(interface2.read_data)
 #TIMER2_SIGNALS.appedn(interface2.resp)
 
-INSTYPE0 = py4hw.Wire(sys,'INSTYPE0',1)
+#INSTYPE0 = py4hw.Wire(sys,'INSTYPE0',1)
 #INSTYPE1 = py4hw.Wire(sys,'INSTYPE1',1)
 #INSTYPE2 = py4hw.Wire(sys,'INSTYPE2',1)
 
-OC0A = py4hw.Wire(sys,'OC0A',1)
-OC0B = py4hw.Wire(sys,'OC0B',1)
+#OC0A = py4hw.Wire(sys,'OC0A',1)
+#OC0B = py4hw.Wire(sys,'OC0B',1)
 #OC1A = py4hw.Wire(sys,'OC1A',1)
 #OC1B = py4hw.Wire(sys,'OC1B',1)
 #OC2A = py4hw.Wire(sys,'OC2A',1)
 #OC2B = py4hw.Wire(sys,'OC2B',1)
 
-T0 = py4hw.Wire(sys,'T0',1)
+#T0 = py4hw.Wire(sys,'T0',1)
 #T1 = py4hw.Wire(sys,'T1',1)
 #T2 = py4hw.Wire(sys,'T2',1)
 
-SIGNALS.append(INSTYPE0)
-SIGNALS.append(OC0A)
-SIGNALS.append(OC0B)
-SIGNALS.append(T0)
+#SIGNALS.append(INSTYPE0)
+#SIGNALS.append(OC0A)
+#SIGNALS.append(OC0B)
+#SIGNALS.append(T0)
 
 #SIGNALS.append(INSTYPE1)
 #SIGNALS.append(OC1A)
@@ -5643,12 +6911,12 @@ SIGNALS.append(T0)
 #TIMER2 = TimerCounter2(sys,'TIMER2',interface0,INSTYPE2,OC2B,OC2A,T2)
 
 #Timer 0
-py4hw.Sequence(sys,'TIMER0_INSTYPE_TEST',TIMER0_INSTYPE,INSTYPE0)
-py4hw.Sequence(sys,'TIMER0_READ_TEST',TIMER0_READ_TEST,interface0.read)
-py4hw.Sequence(sys,'TIMER0_ADDRESS_TEST',TIMER0_ADDRESS_TEST_FULL,interface0.address)
-py4hw.Sequence(sys,'TIMER0_WRITE_TEST',TIMER0_WRITE_TEST,interface0.write)
-py4hw.Sequence(sys,'TIMER0_WRITE_DATA_TEST',TIMER0_WRITE_DATA_TEST,interface0.write_data)
-py4hw.Sequence(sys,'TIMER0_T0_TEST',TIMER0_T0_TEST,T0)
+#py4hw.Sequence(sys,'TIMER0_INSTYPE_TEST',TIMER0_INSTYPE,INSTYPE0)
+#py4hw.Sequence(sys,'TIMER0_READ_TEST',TIMER0_READ_TEST,interface0.read)
+#py4hw.Sequence(sys,'TIMER0_ADDRESS_TEST',TIMER0_ADDRESS_TEST_FULL,interface0.address)
+#py4hw.Sequence(sys,'TIMER0_WRITE_TEST',TIMER0_WRITE_TEST,interface0.write)
+#py4hw.Sequence(sys,'TIMER0_WRITE_DATA_TEST',TIMER0_WRITE_DATA_TEST,interface0.write_data)
+#py4hw.Sequence(sys,'TIMER0_T0_TEST',TIMER0_T0_TEST,T0)
 
 
 #Timer 1
@@ -5668,14 +6936,16 @@ py4hw.Sequence(sys,'TIMER0_T0_TEST',TIMER0_T0_TEST,T0)
 #py4hw.Sequence(sys,'TIMER2_T2_TEST',TIMER2_T2_TEST,T2)
 
 
-wvf = py4hw.Waveform(sys,'wvf',SIGNALS)
+#wvf = py4hw.Waveform(sys,'wvf',SIGNALS)
 
 
 #sch = py4hw.Schematic(sys)
 #sch.draw()
 
 
-sys.getSimulator().clk(len(TIMER0_WRITE_DATA_TEST))
-wvf.gui()
+#sys.getSimulator().clk(len(TIMER0_WRITE_DATA_TEST))
+#wvf.gui()
 
 
+if __name__ == "__main__":
+    TestBench_of_Timer0()
