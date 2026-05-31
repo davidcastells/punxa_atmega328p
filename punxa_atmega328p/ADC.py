@@ -1,14 +1,12 @@
 import py4hw 
-
+from .Memory import *
 
 class ADCBehavioral(py4hw.Logic):
 
-    def __init__(self,parent,name,port:MemoryInterface,INSTYPE,ADC0,ADC1,ADC2,ADC3,ADC4,ADC5,ADC6,ADC7): ## how to assign each function to each pin
+    def __init__(self,parent,name,port:MemoryInterface,ADC0,ADC1,ADC2,ADC3,ADC4,ADC5,ADC6,ADC7): ## how to assign each function to each pin
         super().__init__(parent,name)
 
         self.port0 =  self.addInterfaceSink('port',port)
-
-        self.INSTYPE = self.addIn('INSTYPE',INSTYPE)
 
         self.ADC0 = self.addIn('ADC0',ADC0)
         self.ADC1 = self.addIn('ADC1',ADC1)
@@ -48,10 +46,10 @@ class ADCBehavioral(py4hw.Logic):
         self.ADTS = 0
         self.ACME = 0
 
-    def clock(self):
+    def Memory_access(self):
         #Address decoder
         self.ADDR = self.port0.address.get()
-        if ((self.ADDR == self.ADMUX_addr_LS) and self.INSTYPE.get() == 1):
+        if ((self.ADDR == self.ADMUX_addr_LS) and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.ADMUX)
                 self.port0.resp.prepare(1)
@@ -60,7 +58,7 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.ADCSRA_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.ADCSRA_addr_LS)and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.ADCSRA)
                 self.port0.resp.prepare(1)
@@ -69,7 +67,7 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.ADCH_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.ADCH_addr_LS)and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.ADCH)
                 self.port0.resp.prepare(1)
@@ -78,7 +76,7 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.ADCL_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.ADCL_addr_LS)and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.ADCL)
                 self.port0.resp.prepare(1)
@@ -87,7 +85,7 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.ADCSRB_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.ADCSRB_addr_LS)and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.ADCSRB)
                 self.port0.resp.prepare(1)
@@ -96,7 +94,7 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(1)
             else:
                 self.port0.resp.prepare(0)
-        elif ((self.ADDR == self.DIDR0_addr_LS)and self.INSTYPE.get() == 1):
+        elif ((self.ADDR == self.DIDR0_addr_LS)and self.port0.instype.get() == 1):
             if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):  #read
                 self.port0.read_data.prepare(self.DIDR0)
                 self.port0.resp.prepare(1)
@@ -107,7 +105,8 @@ class ADCBehavioral(py4hw.Logic):
                 self.port0.resp.prepare(0)
         else:
             self.port0.resp.prepare(0)
-        
+
+    def Parse_control_registers(self):
         #Parameter Decoding
         self.MUX = self.ADMUX&0b1111
         self.ADLAR = (self.ADMUX>>5)&0b1
@@ -123,8 +122,9 @@ class ADCBehavioral(py4hw.Logic):
         self.ADTS = self.ADCSRB&0b111
         self.ACME = (self.ADCSRB>>6)&0b1
 
-        match self.MUX:
+    def Input_mux(self):
 
+        match self.MUX:
             case 0:
                 self.ADCIN = self.ADC0.get()
 
@@ -148,8 +148,15 @@ class ADCBehavioral(py4hw.Logic):
 
             case 7:
                 self.ADCIN = self.ADC7.get()
+
+
+
+    def clock(self):
+        self.Memory_access()
+        self.Parse_control_registers()
+        self.Input_mux()
         
 
 
 
-        print("ADC")
+        
