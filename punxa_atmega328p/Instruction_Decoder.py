@@ -148,23 +148,7 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b0000001110: return 'FMULS'
         case 0b0000001111: return 'FMULSU'
 
-    match OP14:
-        case 0b111100001: return 'BREQ'
-        case 0b111101001: return 'BRNE' 
-        case 0b111100000: return 'BRCS' #or BRLO
-        case 0b111101000: return 'BRSH' #or BRCC
-        case 0b111100010: return 'BRMI'
-        case 0b111101010: return 'BRPL'
-        case 0b111101100: return 'BRGE'
-        case 0b111100100: return 'BRLT'
-        case 0b111100101: return 'BRHS'
-        case 0b111101101: return 'BRHC'
-        case 0b111100110: return 'BRTS'
-        case 0b111101110: return 'BRTC'
-        case 0b111100011: return 'BRVS'
-        case 0b111101011: return 'BRVC'
-        case 0b111100111: return 'BRIE'
-        case 0b111101111: return 'BRID'  
+
 
 
     match OP2A10:
@@ -202,6 +186,23 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b111101: return 'BRBC'
         case 0b000100: return 'CPSE'
 
+    match OP14:
+        case 0b111100001: return 'BREQ'
+        case 0b111101001: return 'BRNE' 
+        case 0b111100000: return 'BRCS' #or BRLO
+        case 0b111101000: return 'BRSH' #or BRCC
+        case 0b111100010: return 'BRMI'
+        case 0b111101010: return 'BRPL'
+        case 0b111101100: return 'BRGE'
+        case 0b111100100: return 'BRLT'
+        case 0b111100101: return 'BRHS'
+        case 0b111101101: return 'BRHC'
+        case 0b111100110: return 'BRTS'
+        case 0b111101110: return 'BRTC'
+        case 0b111100011: return 'BRVS'
+        case 0b111101011: return 'BRVC'
+        case 0b111100111: return 'BRIE'
+        case 0b111101111: return 'BRID'  
     
     match OP11:
         ## These instructions are use less at harware level because they default to BSET or BCLR
