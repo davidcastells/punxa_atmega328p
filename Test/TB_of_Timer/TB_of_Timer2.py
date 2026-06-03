@@ -39,15 +39,12 @@ def TestBench_of_Timer2():
 
     CURRENT_TEST = 'START'
 
-
     wvf = py4hw.Waveform(sys,'wvf',SIGNALS2)
-
 
     #sch = py4hw.Schematic(sys)
     #sch.draw()
 
     #sys.getSimulator().clk(len(TIMER0_WRITE_DATA_TEST))
-
 
     Testing = True
     with open("Test/TB_of_Timer/Test_Results.txt",'w+') as results:
@@ -144,7 +141,6 @@ def TestBench_of_Timer2():
                     last_OC2A = 0
                     last_OC2B = 0
 
-
                     ## Testing
                     for i in range(255):
                         # counter test 
@@ -161,7 +157,6 @@ def TestBench_of_Timer2():
                         else:
                             last_OC2A = OC2A.get()
 
-        
                         #Output B 
                         if TIMER2.TCNT2 >= TIMER2.OCR2B:
                             if OC2B.get() == last_OC2B:# error val
@@ -170,20 +165,17 @@ def TestBench_of_Timer2():
                         else:
                             last_OC2B = OC2B.get()
 
-
                         #Interrupt A
                         if (TIMER2.TCNT2-1) == TIMER2.OCR2A:
                             if OCF2A.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OCF2A = {} expected {}| Iteration = {}".format(0,1,i))
 
-
                         #Interrupt B 
                         if (TIMER2.TCNT2-1) == TIMER2.OCR2B:
                             if OCF2B.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OCF2B = {} expected {}| Iteration = {}".format(0,1,i))
-
 
                         #Interrupt OVF
                         if (TIMER2.TCNT2) == 0xFF:
@@ -256,20 +248,17 @@ def TestBench_of_Timer2():
                                 TEST = False
                                 ERROR_LIST.append("OCF2A = {} expected {}| Iteration = {}".format(0,1,i))
 
-
                         #Interrupt B 
                         if (TIMER2.TCNT2) == TIMER2.OCR2B:
                             if OCF2B.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OCF2B = {} expected {}| Iteration = {}".format(0,1,i))
 
-
                         #Interrupt OVF
                         if (TIMER2.TCNT2) == 0xFF:
                             if TOV2.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OVF = {} expected {}| Iteration = {}".format(0,1,i))
-
 
                         sys.getSimulator().clk(1)
 
@@ -477,14 +466,14 @@ def TestBench_of_Timer2():
 
 
                         #Interrupt A
-                        if (TIMER2.TCNT2) == TIMER2.OCR2A:
+                        if (TIMER2.TCNT2-1) == TIMER2.OCR2A:
                             if OCF2A.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OCF2A = {} expected {}| Iteration = {}".format(0,1,i))
 
 
                         #Interrupt B 
-                        if TIMER2.TCNT2 == TIMER2.OCR2B:
+                        if TIMER2.TCNT2-1 == TIMER2.OCR2B:
                             if OCF2B.get() == 0:# error val
                                 TEST = False
                                 ERROR_LIST.append("OCF2B = {} expected {}| Iteration = {}".format(0,1,i))

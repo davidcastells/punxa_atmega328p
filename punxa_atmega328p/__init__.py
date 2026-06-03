@@ -7,7 +7,8 @@ from .Memory import *
 from .Bus import *
 from .USART import *
 from .single_cycle.singlecycle_processor import *
-
+from .Timers import *
+from .Instruction_Decoder import *
 
 #from punxa_atmega328p import ADC
 #from punxa_atmega328p import Bus

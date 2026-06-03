@@ -1,6 +1,6 @@
 import py4hw
-from Source.Instruction_Decoder import *  
-from Source.Memory import * 
+from punxa_atmega328p.Instruction_Decoder import *  
+from punxa_atmega328p.Memory import * 
 
 
 ## *_IO = IN and OUT instruction address
