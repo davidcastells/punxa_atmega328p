@@ -1028,3 +1028,17 @@ class USART_1(py4hw.Logic):
 
         #Drive all output wires
         self.update_Outputs()
+        
+        
+class VirtualUSART(py4hw.Logic):
+    def __init__(self, parent, name, mem:MemoryInterface):
+        super().__init__(parent, name)
+        
+        self.mem = self.addInterfaceSink('', mem)
+        
+        
+    def clock(self):
+        if (self.mem.write.get() == 1):
+            print('WARNING Writing to the USART')
+        elif (self.mem.read.get() == 1):
+            print('WARNING Reading to the USART')
