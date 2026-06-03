@@ -27,7 +27,6 @@ def run_uart_test():
     AVRDUDE_COMMAND = '/home/patrick/.arduino15/packages/arduino/tools/avrdude/8.0.0-arduino1/bin/avrdude -C /home/patrick/.arduino15/packages/arduino/tools/avrdude/8.0.0-arduino1/etc/avrdude.conf -v -p atmega328p -c stk500v1 -P /dev/ttyUSB0 -b 115200 -D -U flash:w:"/home/patrick/.cache/arduino/sketches/AC97C57634ABD88BF8A3E694093236AE/arithmetic_test.ino.hex":i'
     OPEN_VIRTUAL_PORT = "sudo socat PTY,link=/dev/ttyUSB0,raw,echo=0,mode=666 PTY,link=/dev/ttyV1,raw,echo=0,mode=666"
 
-
     # Open the virtual port
 
     #Virtual_port_process = subprocess.Popen(["gnome-terminal", "--", "bash", "-c", f"{OPEN_VIRTUAL_PORT}; exec bash"])
