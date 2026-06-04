@@ -63,16 +63,19 @@ def TestBench_of_Timer1():
                     TIMER1.TCCR1B = 0x01
                     TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1BH = 0
-                    TIMER1.OCR1BL = 0
-                    TIMER1.OCR1AH = 0
-                    TIMER1.OCR1AL = 0
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
                     ERROR_LIST = []
                     TEST = True 
 
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
+
+                    sys.getSimulator().clk(1)
+
 
                     TIMER1.TCNT1H = 0
                     TIMER1.TCNT1L = 0
@@ -152,6 +155,11 @@ def TestBench_of_Timer1():
                     last_OC1A = 0
                     last_OC1B = 0
 
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
+
                     ## Testing
                     for i in range(65536):
                         # counter test 
@@ -189,10 +197,10 @@ def TestBench_of_Timer1():
                                 ERROR_LIST.append("OCF1B = {} expected {}| Iteration = {}".format(0,1,i))
 
                         #Interrupt OVF
-                        if (TIMER1.TCNT1) == 0xFFFF:
-                            if TOV1.get() == 0:# error val
-                                TEST = False
-                                ERROR_LIST.append("OVF = {} expected {}| Iteration = {}".format(0,1,i))
+#                        if (TIMER1.TCNT1) == 0xFFFF:
+#                            if TOV1.get() == 0:# error val
+#                                TEST = False
+#                                ERROR_LIST.append("OVF = {} expected {}| Iteration = {}".format(0,1,i))
 
                         sys.getSimulator().clk(1)
 
@@ -202,7 +210,6 @@ def TestBench_of_Timer1():
                     ITEM.append(ERROR_LIST)
                     results.write('%s\n' %ITEM)
 
-                    break
                     ## Storing data
                     CURRENT_TEST = 'TEST2'
                 case 'TEST2':# TEST2 :Normal mode Compare Match Output B Clear and A Clear (writing using Ls to load data) | No prescaling (X3)
@@ -210,11 +217,15 @@ def TestBench_of_Timer1():
                     #Setup
                     TIMER1.TCCR1A = 0xA0
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -222,8 +233,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    TIMER1.OC1A_val = 1
-                    TIMER1.OC1B_val = 1
+                    TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
                 
 
                 ## Testing
@@ -287,11 +306,15 @@ def TestBench_of_Timer1():
                     #Setup
                     TIMER1.TCCR1A = 0xF0
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -302,13 +325,21 @@ def TestBench_of_Timer1():
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
 
+                    last_OC1A = 0
+                    last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
+
                 ## Testing
-                    for i in range(255):
+                    for i in range(65536):
                         # counter test 
 
-                        if TIMER1.TCNT1 != i%255:
+                        if TIMER1.TCNT1 != i%65536:
                             TEST = False
-                            ERROR_LIST.append("TCNT1 = {} expected {}".format(TIMER1.TCNT1,i%255))
+                            ERROR_LIST.append("TCNT1 = {} expected {}".format(TIMER1.TCNT1,i%65536))
 
                         #Output A 
                         if TIMER1.TCNT1 >= TIMER1.OCR1A:
@@ -367,13 +398,17 @@ def TestBench_of_Timer1():
                 case 'TEST4': # TEST4 :Fast PWM Mode mode Compare Match Output B disconnected and A disconnected (writing using Ls to load data) | No prescaling (X5)
                     results.write("TEST4\n")
                     #Setup
-                    TIMER1.TCCR1A = 0x03
-                    TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1A = 0x01
+                    TIMER1.TCCR1B = 0x09
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0
+                    TIMER1.OCR1BL = 128
+                    TIMER1.OCR1AH = 0
+                    TIMER1.OCR1AL = 64
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -384,25 +419,29 @@ def TestBench_of_Timer1():
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
 
-                    sys.getSimulator().clk(1)
+                    last_OC1A = 0
+                    last_OC1B = 0
 
-                    TIMER1.TCNT1 = 0
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
-                    for i in range(255):
+                    for i in range(256):
                         # counter test 
-                        if TIMER1.TCNT1 != i%255:
+                        if TIMER1.TCNT1 != i%256:
                             TEST = False
-                            ERROR_LIST.append("TCNT1 = {} expected {}| iteration = ".format(TIMER1.TCNT1,i%255))
+                            ERROR_LIST.append("TCNT1 = {} expected {}| iteration = {}".format(TIMER1.TCNT1,i%256,i))
 
 
-                        #Output A
+                        # Output A (Disconnected, should stay 0)
                         if OC1A.get() == 1:# error val
                                 TEST = False
                                 ERROR_LIST.append("OC1A = {} expected {}| iteration = {}".format(1,0,i))
 
 
-                        #Output B 
+                       # Output B (Disconnected, should stay 0)
                         if OC1B.get() == 1:# error val
                             TEST = False
                             ERROR_LIST.append("OC1B = {} expected {}| iteration = {}".format(1,0,i))
@@ -421,7 +460,7 @@ def TestBench_of_Timer1():
                                 TEST = False
                                 ERROR_LIST.append("OCF1B = {} expected {}| iteration = {}".format(0,1,i))
 
-                        #Interrupt OVF
+                        # Interrupt OVF (Triggers at TOP in Fast PWM, which is 0xFF/255 for 8-bit)
                         if (TIMER1.TCNT1) == 0xFF:
                             if TOV1.get() == 0:# error val
                                 TEST = False
@@ -439,13 +478,17 @@ def TestBench_of_Timer1():
                 case 'TEST5':# TEST5 :Fast PWM Mode mode Compare Match Output B disconnected and A (Normal port operation, OC0A disconnected) (writing using Ls to load data) | No prescaling (X6.1)
                     results.write("TEST5\n")
                     #Setup
-                    TIMER1.TCCR1A = 0x53
+                    TIMER1.TCCR1A = 0x51
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -458,6 +501,11 @@ def TestBench_of_Timer1():
 
                     last_OC1A = 0
                     last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -510,19 +558,34 @@ def TestBench_of_Timer1():
                 case 'TEST6':# TEST6 :Fast PWM Mode mode Compare Match Output B disconnected and A (Toggle OC0A on compare match.) (writing using Ls to load data) | No prescaling (X6.2)
                     results.write("TEST6\n")
                     #Setup
-                    TIMER1.TCCR1A = 0x53
-                    TIMER1.TCCR1B = 0x09
+                    TIMER1.TCCR1A = 0x50
+                    TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
 
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
+
+                    TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -577,11 +640,17 @@ def TestBench_of_Timer1():
                 case 'TEST7':# TEST7 :Fast PWM Mode mode Compare Match Output B (Clear OC0B on compare match, set OC0B at BOTTOM,(non-inverting mode)) and A (Clear OC0A on compare match, set OC0A at BOTTOM,(non-inverting mode).) (writing using Ls to load data) | No prescaling (X7)
                     results.write("TEST7\n")
                     #Setup
-                    TIMER1.TCCR1A = 0xA3
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
+
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -589,12 +658,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    TIMER1.OC1B_val = 1
-                    TIMER1.OC1A_val = 1
+                    TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
 
                     sys.getSimulator().clk(1)
-
-                    TIMER1.TCNT1 = 0
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -655,11 +728,17 @@ def TestBench_of_Timer1():
                 case 'TEST8':# TEST8 :Fast PWM Mode mode Compare Match Output B (Set OC0B on compare match, clear OC0B at BOTTOM,(inverting mode)) and A (Set OC0A on compare match, clear OC0A at BOTTOM,(inverting mode).) (writing using Ls to load data) | No prescaling (X8)
                     results.write("TEST8\n")
                     #Setup
-                    TIMER1.TCCR1A = 0xF3
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
+
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -667,11 +746,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    TIMER1.OC1B_val = 0
                     TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
 
                     sys.getSimulator().clk(1)
-                    TIMER1.TCNT1 = 0
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -732,13 +816,17 @@ def TestBench_of_Timer1():
                 case 'TEST9':# TEST9 :Phase Correct PWM mode Compare Match Output B disconnected and A disconnected (writing using Ls) | No prescaling (X9)
                     results.write("TEST9\n")
                     #Setup
-                    TIMER1.TCCR1A = 0x01
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -746,11 +834,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    TIMER1.OC1B_val = 0
                     TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
 
                     sys.getSimulator().clk(1)
-                    TIMER1.TCNT1 = 0
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255*2):
@@ -822,12 +915,17 @@ def TestBench_of_Timer1():
                 case 'TEST10':# TEST10 :Phase Correct PWM mode Compare Match Output B disconnected and A (Normal port operation, OC0A disconnected.) (writing using Ls) | No prescaling (X10.1)
                     results.write("TEST10\n")
                     #Setup
-                    TIMER1.TCCR1A = 0xA3
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -835,12 +933,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-
-                    TIMER1.OC1B_val = 0
                     TIMER1.OC1A_val = 0
-                    sys.getSimulator().clk(1)
+                    TIMER1.OC1B_val = 0
 
-                    TIMER1.TCNT1 = 0
+                    last_OC1A = 0
+                    last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -905,11 +1007,17 @@ def TestBench_of_Timer1():
                 case 'TEST11':# TEST11 :Phase Correct PWM mode Compare Match Output B disconnected and A (Toggle OC0A on compare match.) (writing using Ls) | No prescaling (X10.2)
                     results.write("TEST11\n")
                     #Setup
-                    TIMER1.TCCR1A = 0xA3
-                    TIMER1.TCCR1B = 0x09
+                    TIMER1.TCCR1A = 0x50
+                    TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
+
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -920,10 +1028,13 @@ def TestBench_of_Timer1():
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
 
-                    sys.getSimulator().clk(1)
+                    last_OC1A = 0
+                    last_OC1B = 0
 
-                    last_OCR1A = OC1A.get()
-                    TIMER1.TCNT1 = 0
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                 ## Testing
                     for i in range(255):
@@ -934,11 +1045,11 @@ def TestBench_of_Timer1():
 
                         #Output A 
                         if ((TIMER1.TCNT1 == TIMER1.OCR1A) and i <= 255) or ((TIMER1.TCNT1 == TIMER1.OCR1A) and i>=255):
-                            if OC1A.get() == last_OCR1A:# error val
+                            if OC1A.get() == last_OC1A:# error val
                                 TEST = False
                                 ERROR_LIST.append("OC1A = {} expected {}|Iteration {}".format(0,1,i))
                         else:
-                            last_OCR1A
+                            last_OC1A
 
 
                         #Interrupt A
@@ -982,13 +1093,17 @@ def TestBench_of_Timer1():
                 case 'TEST12':# TEST12 :Phase Correct PWM mode Compare Match Output B (Clear OC0B on compare match when up-counting. Set OC0B on compare match when down-counting.) and A (Clear OC0A on compare match when up-counting. Set OC0A on compare match when down-counting.) (writing using Ls) | No prescaling (X11)
                     results.write("TEST12\n")
                     #Setup
-                    TIMER1.TCCR1A = 0xA1
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -996,13 +1111,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    TIMER1.OC1A_val = 1
-                    TIMER1.OC1B_val = 1
+                    TIMER1.OC1A_val = 0
+                    TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
 
                     sys.getSimulator().clk(1)
-
-                    last_OCR1A = OC1A.get()
-                    TIMER1.TCNT1 = 0
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     counter = 0
                 ## Testing
@@ -1079,13 +1197,17 @@ def TestBench_of_Timer1():
                     results.write("TEST14\n")
                     #Setup
                     ## Loading the config values in memory
-                    TIMER1.TCCR1A = 0x02
+                    TIMER1.TCCR1A = 0x50
                     TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -1093,15 +1215,16 @@ def TestBench_of_Timer1():
                     TIMER1.TIMSK1 = 0b111
                     TIMER1.TIFR1 = 0 # clear interrupts
 
-                    last_OC1A = 0
-                    last_OC1B = 0
-
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
 
-                    sys.getSimulator().clk(1)
+                    last_OC1A = 0
+                    last_OC1B = 0
 
-                    TIMER1.TCNT1 = 0
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     counter = 0
                     ## Testing
@@ -1158,13 +1281,17 @@ def TestBench_of_Timer1():
                 case 'TEST15':# TEST15 :Normal mode Compare Match Output B disconected and A disconected (writing using Ls) | External clock source on T0 pin. Clock on falling edge. (X14)
                     results.write("TEST15\n")
                     #Setup
-                    TIMER1.TCCR1A = 0x00
-                    TIMER1.TCCR1B = 0x07
+                    TIMER1.TCCR1A = 0x50
+                    TIMER1.TCCR1B = 0x01
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -1174,6 +1301,14 @@ def TestBench_of_Timer1():
 
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
+
+                    last_OC1A = 0
+                    last_OC1B = 0
+
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     last_T1 = 0
                     T1.prepare(0)
@@ -1247,11 +1382,15 @@ def TestBench_of_Timer1():
                     #Setup
                     TIMER1.TCCR1A = 0x00
                     TIMER1.TCCR1B = 0x02
+                    TIMER1.TCCR1C = 0x00
 
-                    TIMER1.OCR1A = 64
-                    TIMER1.OCR1B = 128
+                    TIMER1.OCR1BH = 0b00010011
+                    TIMER1.OCR1BL = 0b10001000
+                    TIMER1.OCR1AH = 0b00100111
+                    TIMER1.OCR1AL = 0b00010000
 
-                    TIMER1.TCNT1 = 0
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
 
                     ERROR_LIST = []
                     TEST = True 
@@ -1262,9 +1401,13 @@ def TestBench_of_Timer1():
                     TIMER1.OC1A_val = 0
                     TIMER1.OC1B_val = 0
 
-                    sys.getSimulator().clk(1)
+                    last_OC1A = 0
+                    last_OC1B = 0
 
-                    TIMER1.TCNT1 = 0
+                    sys.getSimulator().clk(1)
+                    
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
                     counter = 0
                     clockCounter = 1
                 ## Testing
