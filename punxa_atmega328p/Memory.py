@@ -30,41 +30,32 @@ class MemoryInterface(Interface):
 
 
 class Ram_Memory(Logic):
-    def __init__(self, parent:Logic, name:str, data_width:int, address_width:int, port:MemoryInterface):
+    def __init__(self, parent:Logic, name:str, dw:int, aw:int, port:MemoryInterface):
         super().__init__(parent, name)
 
-        self.port0 = self.addInterfaceSink('port',port)
-        self.startAddress = 0x0100
-        self.stopAddress = 0x08FF
-        self.values = [0]*(self.stopAddress-self.startAddress+1)
+        
+        self.port = self.addInterfaceSink('port', port)
+        
+        self.data = [0]*(1<<aw)
 
     def clock(self):
-        address = self.port0.address.get()
-        #print("Address:",address)
+        add = self.port.address.get()
+        #0print("Ram_Memory Address:", add, self.port.read.get(), self.port.write.get(), self.data[add])
 
-        if (address >= self.startAddress) and (address <= self.stopAddress):
-            address = address -0x0100
-            
-            print("opperation")
-            #print((self.port0.read.get() == 1) and (self.port0.write.get() == 0))
-            #print((self.port0.read.get() == 1) and (self.port0.write.get() == 1))
-
-            if (self.port0.read.get() == 1) and (self.port0.write.get() == 0):
-                self.port0.read_data.prepare(self.values[address])
-                self.port0.resp.prepare(1)
-                #print('reading address ', address, '=', self.values[address])
-
-
-            elif (self.port0.read.get() == 0) and (self.port0.write.get() == 1):
-                self.values[address] = self.port0.write_data.get()
-                self.port0.resp.prepare(1)
-                #print('writing address ', address, '=', self.values[address])
-                
-
-            else:
-                self.port0.resp.prepare(0)
+        # ensure that no simultaneous read and write operations are done
+        assert not((self.port.read.get() == 1) and (self.port.write.get() == 1))
+        
+        if (self.port.write.get() == 1):
+            self.data[add] = self.port.write_data.get()
+            self.port.resp.prepare(1)
+        elif (self.port.read.get() == 1):
+            self.port.read_data.prepare(self.data[add])
+            self.port.resp.prepare(1)
         else:
-            self.port0.resp.prepare(0)
+            self.port.resp.prepare(0)
+            
+    def writeWord(self, address, value):
+        self.data[address] = value 
 
 
 class EEPROM_Memory(Logic):
