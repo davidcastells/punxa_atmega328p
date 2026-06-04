@@ -1,6 +1,21 @@
 import py4hw
 from punxa_atmega328p.Memory import *
 
+UCSRA_REG = 0x00   # Control and Status register A
+UCSRB_REG = 0x01   # Control and Status register B
+UCSRC_REG = 0x02   # Control and Status register C
+UBRRL_REG = 0x04   # Baud Rate Register Low
+UBRRH_REG = 0x05   # Baud Rate Register High
+UDR_REG =    0x06   # Transmit Buffer Register
+
+UCSRA_RXC = 1 << 7    # Receive Complete
+UCSRA_TXC = 1 << 6    # Transmit Complete
+UCSRA_UDRE = 1 << 5   # Data register empty
+UCSRA_FE = 1 << 4     # Frame Error
+UCSRA_DOR = 1 << 3    # Data OverRun
+UCSRA_PE = 1 << 2     # Parity Error
+UCSRA_2X = 1 << 1     # Double Transmission Speed
+UCSRA_MPCM = 1        # Multi-processor Communication Mode
 
 class USART(py4hw.Logic):
     def __init__(self,parent,name:str,memory:MemoryInterface,RXD,TXD,USART_CLK,RXC_INT,TXC_INT,UDRE_INT):
@@ -1035,10 +1050,37 @@ class VirtualUSART(py4hw.Logic):
         super().__init__(parent, name)
         
         self.mem = self.addInterfaceSink('', mem)
-        
+        self.status_control_A = UCSRA_UDRE
+        self.status_control_B = 0
+        self.status_control_C = 0
+        self.console = ''
         
     def clock(self):
+        add = self.mem.address.get()
+        v = self.mem.write_data.get()
+        
         if (self.mem.write.get() == 1):
-            print('WARNING Writing to the USART')
+            if (add == UCSRA_REG):
+                self.status_control_A = v
+            elif (add == UCSRB_REG):
+                self.status_control_B = v
+            elif (add == UCSRC_REG):
+                self.status_control_C = v
+            elif (add == UBRRH_REG):
+                self.baud_rate_h = v
+            elif (add == UBRRL_REG):
+                self.baud_rate_l = v     
+            elif (add == UDR_REG):
+                self.console += chr(v)
+            else:
+                print(f'WARNING Writing to the USART: {add:04X}={v:02X}')
+                
+            self.mem.resp.prepare(1)
         elif (self.mem.read.get() == 1):
-            print('WARNING Reading to the USART')
+            if (add == UCSRA_REG):
+                self.mem.read_data.prepare(self.status_control_A)
+            else:
+                print(f'WARNING Reading to the USART: {add:04X}')
+            self.mem.resp.prepare(1)
+        else:
+            self.mem.resp.prepare(0)
