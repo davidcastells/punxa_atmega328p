@@ -27,7 +27,6 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.mem = self.addInterfaceSource('memory',memory)
         self.pc = 0x3F00 ##bootloarder
         self.reg = [0]*32
-        # self.ram = [0]*2048
         self.flash = [0]*16384
 
 

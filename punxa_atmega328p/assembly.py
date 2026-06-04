@@ -63,7 +63,7 @@ def parts_to_ins(parts):
         p1 = (off >> 8) & 0xF
         w1 = off & 0xFF
         
-        return [((p0 << 12) | (p1 << 8) | w1) ]
+        return [((p0 << 12) | (p1 << 8) | w1)]
         
     elif (op == 'SBRS'):
         p0 = 0b1111
