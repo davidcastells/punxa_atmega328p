@@ -38,23 +38,23 @@ class MultiplexedBus(Logic):
         addr = self.master.address.get()
         read = self.master.read.get()
         write =  self.master.write.get()
-        be = self.master.be.get()
+        #be = self.master.be.get()
         write_data = self.master.write_data.get()
 
         handled = False 
 
-        addr -= start 
+        
         for idx, slave in enumerate(self.slaves):
             start = self.start[idx]
             stop = self.stop[idx]
 
-            if(addr >= start and addr <= stop and (read > 0 or write > 0)):
- 
-                slave.address.put(addr)
+            if(addr >= start and addr <= stop):
+                slave_addr = addr - start 
+                slave.address.put(slave_addr)
                 slave.read.put(read)
                 slave.write.put(write)
                 slave.write_data.put(write_data)
-                slave.be.put(be)
+                #slave.be.put(be)
 
                 self.master.read_data.put(slave.read_data.get())
                 self.master.resp.put(slave.resp.get())
@@ -65,5 +65,5 @@ class MultiplexedBus(Logic):
                 slave.read.put(0)
                 slave.write.put(0)
                 slave.write_data.put(0)
-                slave.be.put(0)
+                #slave.be.put(0)
                     
