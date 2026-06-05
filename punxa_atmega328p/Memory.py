@@ -56,7 +56,70 @@ class Ram_Memory(Logic):
             
     def writeWord(self, address, value):
         self.data[address] = value 
+        
+    def readWord(self, address):
+        return self.data[address] 
 
+    def on_button_click(self):
+        pass
+    
+    def tkinter_gui(self, parent):
+        from tkinter import ttk
+        import tkinter as tk
+        
+        #print('parent',  type(parent))
+        frame = ttk.Frame(parent, padding="10")
+        #frame.grid(column=0, row=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        #parent.add(frame)
+
+        # Create Treeview with five columns
+        columns = ("address", "3", "2", "1", "0")
+        tree = ttk.Treeview(frame, columns=columns, show="headings")
+
+        vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=vsb.set)
+
+        # Add headings to the columns
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, anchor="center", width=100)  # Adjust width as needed
+
+        # Insert sample data into the treeview
+        for i in range(len(self.data)):
+            v = self.data[i]
+            
+            #print('value', i, '=', v)
+            
+            b0 = v & 0xFF
+            v = v >> 8
+            b1 = v & 0xFF
+            v = v >> 8
+            b2 = v & 0xFF
+            v = v >> 8
+            b3 = v & 0xFF
+            
+            tree.insert("", "end", values=("{:08X}".format(i*4), '{:02X}'.format(b3), '{:02X}'.format(b2), '{:02X}'.format(b1), '{:02X}'.format(b0)))
+
+        # Create label, entry box, and button
+        label = ttk.Label(frame, text="Selected Item:")
+        edit_box = ttk.Entry(frame)
+        button = ttk.Button(frame, text="Update", command=self.on_button_click)
+
+        # Grid layout for Treeview
+        tree.grid(column=0, row=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        vsb.grid(column=3, row=0,  sticky="ns")
+
+        # Grid layout for label, entry box, and button
+        label.grid(column=0, row=1, padx=10, pady=5, sticky="w")
+        edit_box.grid(column=1, row=1, padx=10, pady=5, sticky="ew")
+        button.grid(column=2, row=1, padx=10, pady=5, sticky="e")
+
+        # Configure row and column weights for expanding
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+        
+        return frame
+    
 
 class EEPROM_Memory(Logic):
     def __init__(self, parent:Logic, name:str, data_width:int, address_width:int, port:MemoryInterface,EERI):
