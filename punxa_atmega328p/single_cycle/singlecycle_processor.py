@@ -21,7 +21,11 @@ from deprecated import deprecated
 # R31 Z-register High Byte
  
 # interupt wires to add: INT0, INT1, PCINT0, PCINT1, PCINT2, WDT, TIMER2 COMPA, TIMER2 COMPB, TIMER2 OVF, TIMER1 CAPT, TIMER1 COMPA, TIMER1 COMPB, TIMER1 OVF, TIMER0 COMPA, TIMER0 COMPB, TIMER0 OVF, SPI/STC , USART/RX , USART/UDRE , USART/TX , ADC , EE READY , ANALOG COMP, TWI, SPM READY.
- 
+
+SPL_REG =   0x5D 
+SPH_REG =   0x5E
+SREG_REG =  0x5F
+
 
 class SingleCycleATmega328P(py4hw.Logic):
     def __init__(self,parent, name:str , ins_mem:MemoryInterface, memory:MemoryInterface, reset_address):
@@ -47,37 +51,30 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.next_cycle = False #varible to indicate that data is ready to read from ram/memeory
         self.ins = 0
         self.opp = 'NOP'
-        self.Rr = 0
-        self.Rd = 0
-        self.res = 0
-        self.K = 0
         self.FirstBoot = True #is this actuatly odable ?
         self.BOOTRST = 1
         self.databyteNb = 0
-        self.FSM = 'Begin' 
-
-        self.A = 0
-        self.q = 0
-        self.high = 0
-        self.low = 0
-
-        #registers
-        self.SREG = 0 # b7: I b6: T b5: H b4: S b3: V b2: N b1: Z b0: C 
-        self.SREG_addr_IO = 0x3F
-        self.SREG_addr_LS = 0x5F
-
+        
+        # Registers
+        self.SP = 0
+        
+        # Status flags
+        self.Z = 0
+        self.N = 0
+        self.C = 0
+        self.V = 0
+        self.S = 0
+        self.H = 0
+        self.T = 0
+        self.I = 0
+        
         self.MCUCR = 0
         self.MCUCR_addr_IO = 0x35
         self.MCUCR_addr_LS = 0x55
 
         #Stack Pointer
-        self.SPH = 0x08
-        self.SPH_addr_IO = 0x3E
-        self.SPH_addr_LS = 0x5E
+        
 
-        self.SPL = 0xFF
-        self.SPL_addr_IO = 0x3D
-        self.SPH_addr_LS = 0x5D
 
         self.MCUSR = 0x02 # Power-on Reset  or it can be 0x02 External Reset
         self.MCUSR_addr_IO = 0x34
@@ -132,10 +129,8 @@ class SingleCycleATmega328P(py4hw.Logic):
 
     def getCSR(self, csr):
         # only assuming insret is implemented
+        return self.csr[csr] 
         
-        return self.csr[CSR_INSTRET] 
-        
-#    def HandleInterupts(self):
     
     def writeByte(self, add, value):
         self.mem.write.prepare(1)
@@ -149,7 +144,7 @@ class SingleCycleATmega328P(py4hw.Logic):
             # wait until response
             yield
             
-        
+        yield
     
     def readByte(self, add):
         self.mem.write.prepare(0)
@@ -158,69 +153,11 @@ class SingleCycleATmega328P(py4hw.Logic):
         yield
         self.mem.read.prepare(0) 
         
-        
         while (self.mem.resp.get() == 0):
             # wait until response
             yield
             
         return self.mem.read_data.get()
-        
-
-    @deprecated
-    def writeToMemory(self,Rr,A,q):
-        self.A = A
-        self.Rr = Rr
-
-        #preparing write operation
-        if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
-            self.mem.write.prepare(0)
-            self.mem.read.prepare(0) 
-        else:
-            self.mem.write.prepare(1)
-            self.mem.read.prepare(0)
-
-        if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-            #writing the first byte
-            self.mem.address.prepare(self.A+q)
-            self.mem.write_data.prepare(self.reg[self.Rd])  
-            self.databyteNb = 1 
-            print("byte 1")
-        elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-            self.pc += 1
-            self.databyteNb = 0
-
-
-    @deprecated
-    def readFromMemory(self,Rd,A,q):
-        # self.A = A
-        # self.Rd = Rd
-        # val = 0
-
-        # if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-        #     self.mem.write.prepare(0)
-        #     self.mem.read.prepare(1)
-        #     self.mem.address.prepare(A)
-
-
-        # elif (self.databyteNb == 0) and (self.mem.resp.get() == 1):
-        #     val = self.mem.read_data.get()
-        #     self.databyteNb = 1 
-        #     self.mem.write.prepare(0)
-        #     self.mem.read.prepare(0)
-        #     print("byte 1")
-
-
-        # elif (self.databyteNb == 2) and (self.mem.resp.get() == 1):
-
-        #     print("low=",bin(self.low))
-        #     self.databyteNb = 0
-        #     print("byte 2")
-        #     self.K = (self.high<<8) | self.low
-        #     self.pc  = self.K
-        #     SP = ((self.SPH<<8) | (self.SPL))+2
-        #     self.SPH = (SP>>8)&0xFF
-        #     self.SPL = SP&0xFF
-        pass
 
 
     def readInsWord(self):
@@ -237,80 +174,66 @@ class SingleCycleATmega328P(py4hw.Logic):
         
         
     def fetchIns(self):
-        # if(((self.SREG&1<<7)>>7)==1):# interruption
-        #         print('interruption')
-        # self.pc = self.pc & 0x3FFF
-
-        # self.ins =  self.flash[self.pc]
-        
         print(f'{self.pc:04X} - ', end='')
         self.ins = yield from self.readInsWord()
-        
         
         #print(f'FETCH INS: {self.pc:04X} -  {self.ins:04X}')
         
 
-
+    def getFlagString(self):
+        sZ = 'Z' if (self.Z) else ' '
+        sC = 'C' if (self.C) else ' '
+        sN = 'N' if (self.N) else ' '
+        sV = 'V' if (self.V) else ' '
+        sH = 'H' if (self.H) else ' '
+        sS = 'S' if (self.S) else ' '
+        
+        return f'{sZ}{sC}{sN}{sV}{sH}{sS}'
+        
 
     def execute(self):
-        n0 = (self.ins >> 12) & 0xF
-        n1 = (self.ins >> 8) & 0xF
-        n2 = (self.ins >> 4) & 0xF
-        n3 = self.ins & 0xF
-        
         self.opp =  ins_to_str(self.ins)
+        
+        b3 = self.ins & 0b111
+        
+        Rd4 = ((self.ins>>4) & 0xF)
+        Rd5 = ((self.ins>>4) & 0x1F)
+
+        Rr5 = (((self.ins>>9) & 1) << 4) | (self.ins & 0xF)
+        
+        K7 = (self.ins>>3) & 0b1111111 
+        K8 = ((self.ins>>8) & 0xF) << 4 | (self.ins & 0xF)
+        
+        A6 = ((((self.ins)>>9) & 0b11)<<4) | ((self.ins) & 0xF)  
+        
+        #print(f'{self.pc:02X} - {self.ins:04X}', self.opp)
 
         match self.opp: 
             case 'ADD':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res = (self.reg[self.Rd] + self.reg[self.Rr]) &0xFF
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-                #C
-                if (Rd7 & Rr7 )|( Rr7 & (not R7))|((not R7) & Rd7):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & Rr7 & (not R7)) | ((not Rd7) & (not Rr7) & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-                if (Rd3 & Rr3)|(Rr3 & (not R3))|((not R3) & Rd3):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
+                # ADD Rd, Rr -> 0000 11rd dddd rrrr
+                Rr = Rr5
+                Rd = Rd5
                 
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res = vRd + vRr
+                
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.C = 1 if (res > 0xFF) else 0                
+                self.H =  1 if (((vRd & 0x0F) + (vRr & 0x0F)) > 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
+                rr_sign = (vRr >> 7) & 1      # Bit 7 of Rr
+                res_sign = (res >> 7) & 1     # Bit 7 of result
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res)
+                
+                print(f'ADD R{Rd}, R{Rr}\t\tR{Rd}={res:02X}\t{self.getFlagString()}')
+                
+                
             case 'ADC': # there may be a problem with this but I don't know what is the problem
                 raise Exception('not reviewed')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
@@ -781,35 +704,24 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] =  self.res
                 self.pc += 1
             case 'EOR':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] ^ self.reg[self.Rr]
+                Rr = ((self.ins>>8) & 0b1) <<4 | (self.ins & 0xF)
+                Rd = ((self.ins>>9) & 0b1) <<4 | ((self.ins>>4) & 0xF)
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd ^ vRr
 
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.C = 0
+                self.V = 0
+                self.S = self.N
+                self.H = 0
+                
+                yield from self.writeByte(Rd, res)
+                
+                print(f'EOR R{Rd}, R{Rr}\t\tR{Rd} = {res:02X}\t{self.getFlagString()}')
+                
             case 'COM':
                 raise Exception('not reviewed')
                 self.Rd = ((self.ins>>4) & 0x1F)
@@ -914,6 +826,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] =  self.res
                 self.pc += 1
                 self.pc += 1
+                
             case 'CBR':
                 raise Exception('not reviewed')
                 self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
@@ -927,41 +840,23 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.reg[self.Rd] =  self.res 
                 self.pc += 1
+                
             case 'INC':
-                raise Exception('not reviewed')
-                self.Rd = ((self.ins>>4) & 0x1F)
-                self.res = (self.reg[self.Rd] + 1) & 0xFF
+                # INC Rd --> 1001 010d dddd 0011.
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
                 
-                R7 =  ((self.res&0xFF)>>7)&0b1
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
+                res = vRd + 1
                 
-                #V
-                V = (self.Rd == 0x80)
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.V = 1 if vRd == 0x7F else 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res & 0xFF)
 
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-
-                self.reg[self.Rd] =  self.res 
-                self.pc += 1
+                print(f'INC\t\t\t\t{self.getFlagString()}')
+                
             case 'DEC':
                 raise Exception('not reviewed')
                 self.Rd = ((self.ins>>4) & 0x1F)
@@ -1188,51 +1083,18 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.K = (((self.ins>>4)&0x1F)<<17)|(self.ins&0b1<<16)|self.flash[self.pc+1] 
                 self.pc = self.K
             case 'RCALL':
-                raise Exception('not reviewed')
-                self.K = self.ins&0xFFF
-                #handeling negative K numbers
-                if self.K>>11 == 1:
-                    self.K = -(((~self.K)&0xFFF) + 1)
-                else:
-                    self.K = self.K
-                    
-                SP = ((self.SPH<<8) | (self.SPL))
-                print("SP=",SP)
-                PC_to_store = (self.pc+1)&0xFFFF
-                print("PC_to_store=",bin(PC_to_store))
-                #separation of PC in 2 bytes
-
-                PClwo = PC_to_store&0xFF
-                PChigh = PC_to_store>>8
-                print("PClwo=",bin(PClwo))
-                print("PChigh=",bin(PChigh))
-
-                #preparing write operation
-                if self.databyteNb == 2:
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0) 
-                else:
-                    self.mem.write.prepare(1)
-                    self.mem.read.prepare(0)
-
-                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-                    #writing the first byte
-                    self.mem.address.prepare(SP)
-                    self.mem.write_data.prepare(PClwo)  
-                    self.databyteNb = 1 
-                    print("byte 1")
-                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-                    self.mem.address.prepare(SP-1)
-                    self.mem.write_data.prepare(PChigh)
-                    self.databyteNb = 2
-                    #changing the stack pointer
-                    SP -= 2
-                    self.SPH = (SP>>8)&0xFF
-                    self.SPL = SP&0xFF
-                    print("byte 2")
-                elif((self.databyteNb == 2) and (self.mem.resp.get() == 1)):
-                    self.pc += self.K + 1
-                    self.databyteNb = 0
+                K = py4hw.IntegerHelper.c2_to_signed(self.ins & 0xFFF, 12)
+                
+                ra = self.pc
+                
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra >> 8)
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra & 0xFF)
+                
+                self.pc += K                    
+                
+                print(f'RCALL {K:03X}\t\t[{self.SP+1:04X}]={ra>>8:02X} [{self.SP:04X}]={ra & 0xFF}')
                     
             case 'ICALL':
                 raise Exception('not reviewed')
@@ -1344,45 +1206,16 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.SPL = SP&0xFF
 
                         self.pc = self.K
+                        
             case 'RET':
-                raise Exception('not reviewed')
-
-                match self.insFiniteStateMachine:
-                    
-                    case 'START':
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+1
-
-                        self.mem.address.prepare(SP)
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1)
-
-                        if self.mem.read.get() == 1:
-                            self.insFiniteStateMachine = 'STEP1'
-                            
-                    case 'STEP1':
-                        self.high = self.mem.read_data.get()
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(0)
-                        self.insFiniteStateMachine = 'STEP2'
-
-                    case 'STEP2':
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
-                        self.mem.address.prepare(SP)
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1)
-
-
-                        if self.mem.read.get() == 1 :
-                            self.insFiniteStateMachine = 'STEP3'
-
-                    case 'STEP3': 
-                        self.low = self.mem.read_data.get()
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
-
-                        self.SPH = (SP>>8)&0x00FF
-                        self.SPL = SP&0x00FF
-                        self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
-                        self.insFiniteStateMachine = 'START'
+                retl = yield from self.readByte(self.SP)
+                self.SP += 1
+                reth = yield from self.readByte(self.SP)
+                self.SP += 1
+                
+                self.pc = (reth << 8) | retl
+                print(f'RET\t\t\t\t[{SPH_REG:04X}]={(self.SP>>8):02X} [{SPL_REG:04X}]={(self.SP & 0xFF):02X}')
+                
             case 'RETI':## return from interrupt 
                 raise Exception('not reviewed')
                 match self.insFiniteStateMachine:
@@ -1538,71 +1371,28 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.SREG &= ~(1<<5)
 
                 self.pc += 1
+            
             case 'CPI':
-                raise Exception('not reviewed')
-                self.K = (self.ins&0xF)|(((self.ins>>8)&0xF)<<4)
-                self.Rd = (self.ins>>4)&0xF + 16
-                self.res = (self.reg[self.Rd]-self.K) & 0xFF
+                # Compare with immediate
+                K = (self.ins&0xF) | (((self.ins>>8)&0xF)<<4)
+                Rd = (self.ins>>4) & 0xF + 16
+                
+                vRd = yield from self.readByte(Rd)
+                
+                res = (vRd - K) 
 
-
-                print("K= ", self.K , "Rd =", self.Rd ,"Res", self.res)
-
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|(R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-
-
-                #Z 
-                if (self.res == 0):
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-
-
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-
-                if ((not Rd3) & K3)|(K3 & R3 )|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-
-                self.pc+=1
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res & 0x80) >> 7
+                self.C = 1 if (res >= 0) else 0
+                self.H =  1 if ((vRd & 0x0F) - (K & 0x0F)) < 0 else 0
+                rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
+                rr_sign = (K >> 7) & 1      # Bit 7 of Rr
+                res_sign = (res >> 7) & 1     # Bit 7 of result
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                
+                print(f'CPI R{Rd}, {K:02X}\t\t{self.getFlagString()}')
+                
             case 'SBRC':
                 raise Exception('not reviewed')
                 b = self.ins&0b111
@@ -1616,8 +1406,9 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.pc += 1
             case 'SBRS':
-                b = self.ins & 0b111        # bit position
-                R = (self.ins>>4) & 0b11111 # Register
+                # SBRS Rd, b -> 1111 111r rrrr 0bbb
+                b = b3      # bit position
+                R = Rd5     # Register
                 
                 v = yield from self.readByte(R)
                 cond = (((v >> b) & 1) == 1)
@@ -1653,17 +1444,23 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.pc += 1 
             case 'BRBC':
-                raise Exception('not reviewed')
-                self.K =  (self.ins>>3)&0b1111111 
-                S =  self.ins&0b111
+                # BRBC s, k -> 1111 01kk kkkk ksss
+                K = K7
+                S = b3
 
-                if (self.K & 0x40):
-                    self.K = self.K - 128
+                if (K & 0x40):
+                    K = K - 128
 
-                if(self.SREG>>S)&1 == 0:
-                    self.pc += + self.K + 1
-                else:
-                    self.pc += 1 
+                SREG = (self.I << 7) | (self.T<<6) | (self.H<<5) | (self.S<<4) | (self.V<<3) | (self.N<<2) | (self.Z<<1) | self.C 
+                sSREG = 'ITHSVNZC'[::-1]
+                
+                cond = ((SREG >> S) == 0)
+                
+                if (cond):
+                    self.pc += K 
+                
+                print(f'BRBC {S}, {K:02X}\t\t{sSREG[S]}={cond}')
+                    
             case 'SBI': ## implement write in io 
                 raise Exception('not reviewed')
                 b = (n3 & 0b111)
@@ -1960,11 +1757,12 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'LDI':
-                Rd = n2+16                      
-                K = (n1<<4) | n3
+                # LDI Rd, K -> 1110 KKKK dddd KKKK
+                Rd = Rd4+16                      
+                K = K8
                 yield from self.writeByte(Rd, K)
                 
-                print(f'LDI R{Rd}, {K}\t\tR{Rd}={K:02X}')
+                print(f'LDI R{Rd}, {K:02X}\t\tR{Rd}={K:02X}')
                 
             case 'LDX': #X
                 raise Exception('not reviewed')
@@ -2333,6 +2131,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STY':#Y
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2357,6 +2156,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STY+':#Y+
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2385,7 +2185,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'ST-Y':#–Y
-
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2414,6 +2214,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STDY':#Y+q or STY
+                raise Exception('not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.q = (self.ins&0b111)|(((self.ins>>10)&0b11)<<3)|(((self.ins>>13)&0b1)<<5)
                 self.A = ((self.reg[28]&0xFF)|(self.reg[29]<<8))+self.q # Y address
@@ -2440,6 +2241,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STZ':#Z
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8) # Z
 
@@ -2464,6 +2266,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STZ+':#Z+
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
@@ -2492,6 +2295,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'ST-Z':#–Z
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0b11111
                 Z = self.reg[30]&0xFF|(self.reg[31]<<8) # Z address
 
@@ -2520,6 +2324,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STDZ':#Z+q or STZ
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.q = (self.ins&0b111) | (((self.ins>>10)&0b11)<<3) | (((self.ins>>13)&0b11)<<3)
                 self.A = self.reg[30]|(self.reg[31]<<8) #named A but it is a Z address
@@ -2555,7 +2360,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print(f'STS {add:04X}, R{Rr}\t[{add:04X}]={v:02X}')
 
             case 'LPM': #R0 implied
-
+                raise Exception('not reviewed')
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
                 if(self.A&0b1 == 1 ):##high byte
@@ -2565,7 +2370,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1 
             case 'LPMZ': #Z
-
+                raise Exception('not reviewed')
                 self.Rd = ((self.ins>>4)&0x1F)
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
@@ -2578,7 +2383,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'LPMZ+': #Z+
-
+                raise Exception('not reviewed')
                 self.Rd = ((self.ins>>4)&0x1F) 
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
@@ -2595,6 +2400,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc+=1
             case 'SPM':
+                raise Exception('not reviewed')
                 # must use SPMCSR
                 SELFPRGEN = self.SPMCSR & 0b1
                 PGERS = (self.SPMCSR >> 1) & 0b1
@@ -2650,6 +2456,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
 
             case 'IN':
+                raise Exception('not reviewed')
                 self.Rd = (self.ins>>4)&0b11111
                 self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
 
@@ -2682,42 +2489,32 @@ class SingleCycleATmega328P(py4hw.Logic):
                     # increment by one if the address is invalid    
                     self.pc+=1
             case 'OUT':
-                self.Rr = (self.ins>>4)&0b11111
-                self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
-
-                #verify if the address is valid
-                #Minimum Address: 0x00
-                #Maximum Address: 0x3F
-                if (self.A >= 0x00) and (self.A <=0x3F):
-                    #internal addresses
-                    if (self.A == self.SREG_addr_IO):
-                        self.SREG = self.reg[self.Rr] #status register
-                        print("Register:SREG")
-                        self.pc += 1 
-                    elif (self.A == self.MCUSR_addr_IO):
-                        self.MCUSR = self.reg[self.Rr]
-                        print("Register:MCUSR = {val}".format(val = self.MCUSR)) 
-                        self.pc += 1 
-
-                    if self.databyteNb == 0 :
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1) 
-
-                        self.mem.instype.prepare(0)
-
-                        self.mem.address.prepare(self.A)
-                        self.databyteNb = 1
-                    elif self.mem.resp.get() == 1:
-                        self.reg[self.Rd] = self.mem.read_data.get()
-
-                        self.mem.instype.prepare(0)
-
-                        self.pc += 1
-                        self.databyteNb = 0
+                # -> 1011 1AAr rrrr AAAA
+                Rr = Rd5
+                add = A6 + 0x20
+                
+                v = yield from self.readByte(Rr)
+                
+                if (add == SPH_REG):
+                    self.SP = (v << 8) | self.SP & 0x00FF
+                elif (add == SPL_REG):
+                    self.SP = v | self.SP & 0xFF00
+                elif (add == SREG_REG):
+                    self.I = (v >> 7) & 1
+                    self.T = (v >> 6) & 1
+                    self.H = (v >> 5) & 1
+                    self.S = (v >> 4) & 1
+                    self.V = (v >> 3) & 1
+                    self.N = (v >> 2) & 1
+                    self.Z = (v >> 1) & 1
+                    self.C = (v & 1)
                 else:
-                    # increment by one if the address is invalid
-                    self.pc+=1
+                    yield from self.writeByte(add + 0x20, v)
+                
+                print(f'OUT {add:04X}, R{Rr}\t[{add:04X}]={v:02X}')
+
             case 'PUSH':
+                raise Exception('not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = (self.SPH<<8) | (self.SPL&0xFF)
 
@@ -2741,6 +2538,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0            
             case 'POP':
+                raise Exception('not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
 
@@ -2765,17 +2563,22 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'NOP':
+                raise Exception('not validated')
                 self.pc += 1 
             case 'SLEEP':
                 ##activation of SLEEP MODE
+                raise Exception('not validated')
                 self.pc += 1
             case 'WDR' :
                 ## Watchdog Reset
+                raise Exception('not validated')
                 self.pc +=1
             case 'BREAK' : 
                 ## Sould enter debug mode
+                raise Exception('not validated')
                 self.pc += 1
             case 'invalid': #basicaly a nop
+                raise Exception(f'invalid opocode: {self.ins:04X}')
                 self.pc += 1
                 
         yield
