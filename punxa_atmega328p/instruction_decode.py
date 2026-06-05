@@ -41,14 +41,21 @@ MEMORY_INSTRUCTIONS = ['POP','PUSH','LDX','LDX+','LD-X','LDY','LDY+','LD-Y','LDZ
 def ins_to_str(ins): # I am packing all the OP bits, keeping the order 
 
     mask_4  = 0b1111_0000_0000_0000 # used by LDI, RJMP
+    mask_6  = 0b1111_1100_0000_0000 # used in ADD
     mask_8  = 0b1111_1110_0000_1000 # used in SBRC, SBRS
+    mask_8b = 0b1111_1111_0000_0000 # used in MULS
     mask_10 = 0b1111_1110_0000_1110 # used in JMP, CALL
     mask_11 = 0b1111_1110_0000_1111 # used in LDS, STS, DEC
     mask_13 = 0b1111_1111_1000_1111 # used in BSET
     
+    
+    
     match (ins & mask_4):
         case 0b1110_0000_0000_0000: return 'LDI'
         case 0b1100_0000_0000_0000: return 'RJMP'
+        
+    match (ins & mask_6):
+        case 0b0000_1100_0000_0000: return 'ADD'
         
     match (ins & mask_8):
         case 0b1111_1010_0000_0000: return 'BST'
@@ -56,6 +63,8 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b1111_1100_0000_0000: return 'SBRC'
         case 0b1111_1110_0000_0000: return 'SBRS'
         
+    match (ins & mask_8b):
+        case 0b0000_0010_0000_0000: return 'MULS'
         
     match (ins & mask_10):
         case 0b1001_0100_0000_1100: return 'JMP'
