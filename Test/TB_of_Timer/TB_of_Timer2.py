@@ -373,7 +373,8 @@ def TestBench_of_Timer2():
                     TIMER2.OC2B_val = 0
 
                     sys.getSimulator().clk(1)
-
+                    TIMER1.TCNT1H = 0
+                    TIMER1.TCNT1L = 0
                     TIMER2.TCNT2 = 0
 
                 ## Testing

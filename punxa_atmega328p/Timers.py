@@ -1555,7 +1555,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
             self.opMode = 'Phase_Correct_PWM_10bit'
             self.TOP = 0x03FF
         elif self.WGM == 4: #4
-            self.TOP = ((self.OCR1AH&0xFF)<<8) | (self.OCR1AH&0xFF)
+            self.TOP = ((self.OCR1AH&0xFF)<<8) | (self.OCR1AL&0xFF)
             self.opMode = 'CTC_O'
         elif self.WGM == 5: #5
             self.TOP = 0x00FF
@@ -1649,75 +1649,65 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     self.TIFR1 |= 0b100 
                 
     def handle_Phase_Correct_PWM_mode(self):
+
+        if self.OCR1A == self.TCNT1:
+            self.TIFR1 |= 0b010
+            
+        if self.OCR1B == self.TCNT1:
+            self.TIFR1 |= 0b100
         #OC0A
         if self.COM1A == 1: # at 0 0 OC0A is disconected 
             #if self.WGM02 == 0: #normal port operation
             if (self.WGM == 14) | (self.WGM == 15): # Toggle OC0A on compare match 
                 if (self.OCR1A == self.TCNT1): 
                     self.OC1A_val = self.OC1A_val ^ 1
-                    if self.OCIE1A == 1:
-                        self.TIFR1 |= 0b010
             else:
                 self.OC1A_val = 0 #disconnected
-
         elif self.COM1A == 2:
-            if self.direction == 'Increment':
-                if self.OCR1A == self.TCNT1 :
-                    self.OC1A_val = 0
-                    if self.OCIE1A == 1:
-                        self.TIFR1 |= 0b010 
+            if (self.direction == 'Increment') and (self.TCNT1 == self.OCR1A):
+                self.OC1A_val = 0
 
-            elif self.direction == 'Decrement':
-                if self.OCR1A == self.TCNT1 :
-                    self.OC1A_val = 1
-                    if self.OCIE1A == 1:
-                        self.TIFR1 |= 0b010
+            elif (self.direction == 'Decrement') and (self.TCNT1 == self.OCR1A):
+                self.OC1A_val = 1
                             
         elif self.COM1A == 3:
-            if self.direction == 'Increment':
-                if self.OCR1A == self.TCNT1 :
-                    self.OC1A_val = 1
-                    if self.OCIE1A == 1:
-                        self.TIFR1 |= 0b010
+            if (self.direction == 'Increment') and (self.TCNT1 == self.OCR1A):
+                self.OC1A_val = 1
 
-            elif self.direction == 'Decrement':
-                if self.OCR1A == self.TCNT1 :
-                    self.OC1A_val = 0
-                    if self.OCIE1A == 1:
-                        self.TIFR1 |= 0b010
+            elif (self.direction == 'Decrement') and (self.TCNT1 == self.OCR1A):
+                self.OC1A_val = 0
 
         #OC0B
         if self.COM1B == 1: 
-            self.OC1B_val = 0
-        
+            self.OC1B_val = 0   
 
         elif self.COM1B == 2:
-            if self.direction == 'Increment':
-                if self.OCR1B == self.TCNT1 :
-                    self.OC1B_val = 0
-                    if self.OCIE1B == 1:
-                        self.TIFR1 |= 0b100
+            if (self.direction == 'Increment') and (self.OCR1B == self.TCNT1) :
+                self.OC1B_val = 0
 
-            elif self.direction == 'Decrement':
-                if self.OCR1B == self.TCNT1 :
-                    self.OC1B_val = 1
-                    if self.OCIE1B == 1:
-                        self.TIFR1 |= 0b100
+            elif (self.direction == 'Decrement') and (self.OCR1B == self.TCNT1):
+                self.OC1B_val = 1
 
         elif self.COM1B == 3:
-            if self.direction == 'Increment':
-                if self.OCR1B == self.TCNT1 :
-                    self.OC1B_val = 1
-                    if self.OCIE1B == 1:
-                        self.TIFR1 |= 0b100
+            if (self.direction == 'Increment') and (self.TCNT1 == self.OCR1B):
+                self.OC1B_val = 1
 
-            elif self.direction == 'Decrement':
-                if self.OCR1B == self.TCNT1:
-                    self.OC1B_val = 0
-                    if self.OCIE1B == 1:
-                        self.TIFR1 |= 0b100
+            elif (self.direction == 'Decrement') and (self.TCNT1 == self.OCR1B):
+                self.OC1B_val = 0
 
     def handle_CTC_mode(self):
+
+        if self.WGM == 12 and self.TCNT1 == self.TOP:
+            self.TIFR1 |= 0b100_000
+
+        if self.OCR1A == self.TCNT1:
+            if self.OCIE1A == 1:
+                self.TIFR1 |= 0b010
+
+        if self.OCR1B == self.TCNT1:
+            if self.OCIE1B == 1:
+                self.TIFR1 |= 0b100
+
         #OC0A
         if self.COM1A == 1:
             if self.OCR1A == self.TCNT1:
@@ -1770,6 +1760,13 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
             self.OC1B_val = 0 ## disconected
 
     def handle_FAST_PWM_mode(self):
+
+        if self.TCNT1 == self.TOP:
+            self.TIFR1 |= 0b001 # Set TOV1
+            if self.WGM == 14:
+                self.TIFR1 |= 0b100000 #Set ICRF1
+
+
         #OC0A
         if self.COM1A == 1: # at 0 0 OC0A is disconected 
             if (self.WGM == 14) or (self.WGM == 15): # Toggle OC0A on compare match
@@ -1785,24 +1782,24 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                         self.TIFR1 |= 0b010
 
         elif self.COM1A == 2:
-            if self.OCR1A == self. TCNT1:
+            if self.TCNT1 < self.OCR1A:
+                self.OC1A_val = 1
+            else:
                 self.OC1A_val = 0
-                #Interrupts
+
+            if self.OCR1A == self.TCNT1:
                 if self.OCIE1A == 1:
                     self.TIFR1 |= 0b010
-
-            if self.TCNT1 == self.BOTTOM:
-                self.OC1A_val = 1
 
         elif self.COM1A == 3:
-            if self.OCR1A == self. TCNT1:
-                self.OC1A_val = 1 
+            if self.TCNT1 < self.OCR1A:
+                self.OC1A_val = 0
+            else:
+                self.OC1A_val = 1
 
+            if self.OCR1A == self.TCNT1:
                 if self.OCIE1A == 1:
                     self.TIFR1 |= 0b010
-
-            if self.TCNT1 == self.BOTTOM:
-                self.OC1A_val = 0
         
         else:
             self.OC1A_val = 0 
@@ -1819,24 +1816,24 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     self.TIFR1 |= 0b100
 
         elif self.COM1B == 2:
-            if self.OCR1B == self. TCNT1:
+            if self.TCNT1 < self.OCR1B:
+                self.OC1B_val = 1
+            else:
                 self.OC1B_val = 0
 
+            if self.OCR1B == self.TCNT1:
                 if self.OCIE1B == 1:
                     self.TIFR1 |= 0b100
-
-            if self.TCNT1 == self.BOTTOM:
-                self.OC1B_val = 1
 
         elif self.COM1B == 3: # Set
-            if self.OCR1B == self.TCNT1:
+            if self.TCNT1 < self.OCR1B:
+                self.OC1B_val = 0
+            else:
                 self.OC1B_val = 1
 
+            if self.OCR1B == self.TCNT1:
                 if self.OCIE1B == 1:
                     self.TIFR1 |= 0b100
-
-            if self.TCNT1 == self.BOTTOM:
-                self.OC1B_val = 0
 
         else:
             self.OC1B_val = 0
@@ -1845,6 +1842,12 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     self.TIFR1 |= 0b100
 
     def handle_Phase_Correct_And_Frequency_PWM_mode(self):
+
+        if self.TCNT1 == self.OCR1A:
+            self.TIFR1 |= 0b010
+        if self.TCNT1 == self.OCR1B:
+            self.TIFR1 |= 0b100
+
         #OC0A
         if self.COM1A == 1: # at 0 0 OC0A is disconected 
             #if self.WGM02 == 0: #normal port operation
@@ -1929,19 +1932,23 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                 if self.TOIE1 == 1:
                     self.TIFR1 |= 0b001
 
+        self.TCNT1H = (self.TCNT1 >> 8) & 0xFF
+        self.TCNT1L = self.TCNT1 & 0xFF
+
     def Other_modes_Increment(self):
         if self.direction == 'Increment':
             self.TCNT1 += 1
             self.TCNT1 &= 0xFFFF
-            self.TCNT1H = ((self.TCNT1>>8) & 0xFF)
-            self.TCNT1L = self.TCNT1 & 0xFF
-            if self.TCNT1 >= self.TOP:
-                if self.opMode == 'CTC':
+
+
+            if self.TCNT1 > self.TOP:
+                if 'CTC' in self.opMode:
                     self.TCNT1 = self.BOTTOM
                     if self.OCIE1A == 1: ## Interrupt
                         self.TIFR1 |= 0b010
 
-                elif self.opMode == 'FAST_PWM':
+                elif 'FAST_PWM' in self.opMode:
+                    self.TCNT1 = self.BOTTOM
 
                     if self.COM1A == 2: # CLEAR
                         self.OC1A_val = 1
@@ -1953,8 +1960,17 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
                     elif self.COM1B == 3: # SET
                         self.OC1B_val = 0
 
+                    if self.TOIE1 == 1:
+                        self.TIFR1 |= 0b001
+
+            if self.TCNT1 > 0xFFFF:
+                self.TCNT1&= 0xFFFF
                 if self.TOIE1 == 1:
-                    self.TIFR1 |= 0b001
+                    self.TIFR1 |= 0b001 
+
+            # Ensure registers always reflect the post-reset state
+            self.TCNT1H = ((self.TCNT1>>8) & 0xFF)
+            self.TCNT1L = self.TCNT1 & 0xFF
 
     def increment(self):
         if( self.incrementEnable == True):
@@ -1963,7 +1979,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
         if (self.prescaler != 0) and (self.prescaler == self.prescalerCounter): 
             self.prescalerCounter = 0
             # Incrementing and Decrementing
-            if (self.opMode == 'Phase_Correct_PWM') or (self.opMode == 'Phase_Correct_PWM_8bit') or (self.opMode == 'Phase_Correct_PWM_9bit') or (self.opMode == 'Phase_Correct_PWM_10bit') or (self.opMode == 'Phase_Correct_And_Frequency_PWM_I') or (self.opMode == 'Phase_Correct_And_Frequency_PWM_O'):
+            if 'Phase_Correct' in self.opMode:
                 self.Phase_Correct_PWM_Increment()
                 #return   # skip determine_outputs at TOP turnaround
             else:  # NORMAL, CTC, FAST_PWM
@@ -2012,6 +2028,7 @@ class TimerCounter1(py4hw.Logic): #16 Bit timer
         self.OCF1B.prepare(((self.TIFR1>>2)&0b1))
         self.OCF1A.prepare(((self.TIFR1>>1)&0b1))
         self.TOV1.prepare(((self.TIFR1>>0)&0b1))
+        self.ICF1.prepare(((self.TIFR1>>5)&0b1))
 
     def clock(self):
         self.Memory_access()
