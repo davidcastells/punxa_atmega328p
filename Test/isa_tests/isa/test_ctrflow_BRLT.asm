@@ -4,7 +4,7 @@
 ; Tests that BRLT correctly branches when S flag = 1
 ; which means: Rd < Rr (signed comparison)
 ; ============================================================
-; S = N ⊕ V
+; S = N ^ V
 ; S=1 when:
 ;   - N=1, V=0 (negative result, no overflow)
 ;   - N=0, V=1 (positive result with overflow, actually Rd < Rr in signed)
