@@ -1,239 +1,205 @@
 ; ============================================================
-; BRCC (Branch if Carry Clear) test suite
-; ============================================================
-; Tests that BRCC correctly branches when Carry flag = 0
-; and does NOT branch when Carry flag = 1
+; BRCC (Branch if Carry Clear) test suite (Trampoline Version)
 ; ============================================================
 
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
 reset:
-    ldi r16, 0x03
+    ldi r16, high(stack_start)
     out SPH, r16
-    ldi r16, 0xFF
+    ldi r16, low(stack_start)
     out SPL, r16
 
     ldi r16, 1
     sts test_case, r16
     sts final_result, r16
+    jmp test1
 
 ; ============================================================
-; TEST 1: Branch if Carry Flag is CLEAR (C=0)
+; TESTS
 ; ============================================================
 test1:
-    ; Clear Carry flag
-    clc                 ; C = 0
-    
-    brcc branch1_ok     ; If C=0, branch to label
-    rjmp fail           ; Should NOT execute (C=0, so branch taken)
+    clc
+    brcc branch1_ok
+    jmp fail
 branch1_ok:
-    rcall inc_case
+    call inc_case
+    jmp test2
 
-; ============================================================
-; TEST 2: Do NOT Branch if Carry Flag is SET (C=1)
-; ============================================================
 test2:
-    ; Set Carry flag
-    sec                 ; C = 1
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
+    sec
+    brcc t2_fail_trampoline
+    rjmp t2_skip
+t2_fail_trampoline:
+    jmp fail
+t2_skip:
+    call inc_case
+    jmp test3
 
-; ============================================================
-; TEST 3: Branch if C=0 after addition with no carry
-; ============================================================
 test3:
-    ; Addition that doesn't produce carry
     ldi r16, 0x10
     ldi r17, 0x20
-    add r16, r17        ; 0x10 + 0x20 = 0x30, C=0
-    
-    brcc branch3_ok     ; If C=0, branch
-    rjmp fail
+    add r16, r17
+    brcc branch3_ok
+    jmp fail
 branch3_ok:
-    rcall inc_case
+    call inc_case
+    jmp test4
 
-; ============================================================
-; TEST 4: Do NOT Branch if C=1 after addition with carry
-; ============================================================
 test4:
-    ; Addition that produces carry
     ldi r16, 0xFF
     ldi r17, 0x01
-    add r16, r17        ; 0xFF + 0x01 = 0x100, C=1
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
+    add r16, r17
+    brcc t4_fail_trampoline
+    rjmp t4_skip
+t4_fail_trampoline:
+    jmp fail
+t4_skip:
+    call inc_case
+    jmp test5
 
-; ============================================================
-; TEST 5: Branch if C=0 after subtraction with no borrow
-; ============================================================
 test5:
-    ; Subtraction that doesn't require borrow
     ldi r16, 0x50
     ldi r17, 0x20
-    sub r16, r17        ; 0x50 - 0x20 = 0x30, C=0 (no borrow)
-    
-    brcc branch5_ok     ; If C=0, branch
-    rjmp fail
+    sub r16, r17
+    brcc branch5_ok
+    jmp fail
 branch5_ok:
-    rcall inc_case
+    call inc_case
+    jmp test6
 
-; ============================================================
-; TEST 6: Do NOT Branch if C=1 after subtraction with borrow
-; ============================================================
 test6:
-    ; Subtraction that requires borrow
     ldi r16, 0x20
     ldi r17, 0x50
-    sub r16, r17        ; 0x20 - 0x50 = borrow occurs, C=1
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
+    sub r16, r17
+    brcc t6_fail_trampoline
+    rjmp t6_skip
+t6_fail_trampoline:
+    jmp fail
+t6_skip:
+    call inc_case
+    jmp test7
 
-; ============================================================
-; TEST 7: Branch if C=0 after shift left (LSL)
-; ============================================================
 test7:
-    ; LSL that doesn't set carry
-    ldi r16, 0x40       ; 0x40 = 01000000 binary
-    lsl r16             ; 0x40 << 1 = 0x80, no carry out (bit 7 was 0)
-                        ; Actually wait: LSL shifts bit 7 into C
-                        ; 0x40 (01000000) shifted left = 0x80 (10000000)
-                        ; The bit shifted out was 0, so C=0
-    
-    brcc branch7_ok     ; If C=0, branch
-    rjmp fail
+    ldi r16, 0x40
+    lsl r16
+    brcc branch7_ok
+    jmp fail
 branch7_ok:
-    rcall inc_case
+    call inc_case
+    jmp test8
 
-; ============================================================
-; TEST 8: Do NOT Branch if C=1 after shift left
-; ============================================================
 test8:
-    ; LSL that sets carry
-    ldi r16, 0x80       ; 0x80 = 10000000 binary
-    lsl r16             ; 0x80 << 1 = 0x00, bit 7 shifted out = 1, C=1
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
+    ldi r16, 0x80
+    lsl r16
+    brcc t8_fail_trampoline
+    rjmp t8_skip
+t8_fail_trampoline:
+    jmp fail
+t8_skip:
+    call inc_case
+    jmp test9
 
-; ============================================================
-; TEST 9: Branch if C=0 after logical shift right (LSR)
-; ============================================================
 test9:
-    ; LSR that doesn't set carry
-    ldi r16, 0x02       ; 0x02 = 00000010 binary
-    lsr r16             ; 0x02 >> 1 = 0x01, LSB shifted out = 0, C=0
-    
-    brcc branch9_ok     ; If C=0, branch
-    rjmp fail
-branch9_ok:
-    rcall inc_case
-
-; ============================================================
-; TEST 10: Do NOT Branch if C=1 after logical shift right
-; ============================================================
-test10:
-    ; LSR that sets carry
-    ldi r16, 0x01       ; 0x01 = 00000001 binary
-    lsr r16             ; 0x01 >> 1 = 0x00, LSB shifted out = 1, C=1
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
-
-; ============================================================
-; TEST 11: Branch if C=0 after rotate right (ROR)
-; ============================================================
-test11:
-    ; Clear carry first, then ROR doesn't bring in a 1
-    clc                 ; C=0
     ldi r16, 0x02
-    ror r16             ; Rotate right through carry, C becomes LSB (0)
-    
-    brcc branch11_ok    ; If C=0, branch
-    rjmp fail
+    lsr r16
+    brcc branch9_ok
+    jmp fail
+branch9_ok:
+    call inc_case
+    jmp test10
+
+test10:
+    ldi r16, 0x01
+    lsr r16
+    brcc t10_fail_trampoline
+    rjmp t10_skip
+t10_fail_trampoline:
+    jmp fail
+t10_skip:
+    call inc_case
+    jmp test11
+
+test11:
+    clc
+    ldi r16, 0x02
+    ror r16
+    brcc branch11_ok
+    jmp fail
 branch11_ok:
-    rcall inc_case
+    call inc_case
+    jmp test12
 
-; ============================================================
-; TEST 12: Do NOT Branch if C=1 after rotate right
-; ============================================================
 test12:
-    ; Set carry first, then ROR brings it into the register
-    sec                 ; C=1
-    ldi r16, 0x00
-    ror r16             ; Rotate right through carry, C becomes LSB (0)
-                        ; Actually ROR sets C = LSB, then shifts C into MSB
-                        ; Wait, need to be careful with ROR behavior
-    
-    ; Simpler: Use SEC then an operation that leaves C=1
-    sec                 ; C=1
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case
+    sec
+    brcc t12_fail_trampoline
+    rjmp t12_skip
+t12_fail_trampoline:
+    jmp fail
+t12_skip:
+    call inc_case
+    jmp test13
 
-; ============================================================
-; TEST 13: Branch if C=0 after CPI comparison (Rd >= K)
-; ============================================================
 test13:
-    ; CPI sets C=1 if Rd < K (borrow), C=0 if Rd >= K
     ldi r16, 10
-    cpi r16, 5          ; 10 >= 5, so C=0
-    
-    brcc branch13_ok    ; If C=0, branch
-    rjmp fail
+    cpi r16, 5
+    brcc branch13_ok
+    jmp fail
 branch13_ok:
-    rcall inc_case
+    call inc_case
+    jmp test14
 
-; ============================================================
-; TEST 14: Do NOT Branch if C=1 after CPI comparison (Rd < K)
-; ============================================================
 test14:
     ldi r16, 3
-    cpi r16, 5          ; 3 < 5, so C=1 (borrow)
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case      ; Should execute (C=1, no branch)
+    cpi r16, 5
+    brcc t14_fail_trampoline
+    rjmp t14_skip
+t14_fail_trampoline:
+    jmp fail
+t14_skip:
+    call inc_case
+    jmp test15
 
-; ============================================================
-; TEST 15: Branch if C=0 after clearing carry
-; ============================================================
 test15:
-    clc                 ; Explicitly clear carry
-    
-    brcc branch15_ok    ; If C=0, branch
-    rjmp fail
+    clc
+    brcc branch15_ok
+    jmp fail
 branch15_ok:
-    rcall inc_case
+    call inc_case
+    jmp test16
 
-; ============================================================
-; TEST 16: Do NOT Branch after setting carry
-; ============================================================
 test16:
-    sec                 ; Explicitly set carry
-    
-    brcc fail           ; If C=1, this should NOT branch
-    rcall inc_case
+    sec
+    brcc t16_fail_trampoline
+    rjmp t16_skip
+t16_fail_trampoline:
+    jmp fail
+t16_skip:
+    call inc_case
+    jmp success
 
 ; ============================================================
-; SUCCESS / FAILURE logic
+; SUCCESS / FAILURE / HELPERS
 ; ============================================================
 success:
     ldi r16, 1
     sts final_result, r16
-end:
-    rjmp end
+    jmp end
 
 fail:
     ldi r16, 255
     sts final_result, r16
-    rjmp end
+    jmp end
 
 inc_case:
     lds r16, test_case
     inc r16
     sts test_case, r16
     ret
+
+end:
+    rjmp end
