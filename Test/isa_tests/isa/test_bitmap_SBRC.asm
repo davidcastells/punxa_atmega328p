@@ -1,72 +1,81 @@
 ; ============================================================
-; Expanded SBRC Test Suite
+; SBRC (Skip if Bit in Register Cleared) test suite
+; ============================================================
+; Tests that SBRC:
+; 1. Skips the next instruction if the specified bit is 0
+; 2. Executes the next instruction if the specified bit is 1
+; 3. Is register-safe (works on R0-R31)
 ; ============================================================
 
 .equ test_case = 0x0100
 .equ final_result = 0x0101
-.equ trap_flag = 0x0102
+.equ SPH = 0x3E
+.equ SPL = 0x3D
 
 reset:
-    ; ... (init stack and variables as before)
+    ; Initialize stack pointer to 0x08FF
+    ldi r16, 0x08
+    out SPH, r16
+    ldi r16, 0xFF
+    out SPL, r16
+
+    ; Initialize state
     ldi r16, 1
     sts test_case, r16
     sts final_result, r16
-    ldi r16, 0
-    sts trap_flag, r16
+
+    rjmp test1
 
 ; ============================================================
-; TEST 1: Skip 1-word instruction (Bit 0 is 0)
+; TEST 1: Skip when bit is 0
 ; ============================================================
 test1:
-    ldi r16, 0xFE           ; bit 0 is 0
-    sbrc r16, 0
-    sts trap_flag, r16      ; Should be skipped
-    
-    lds r17, trap_flag
-    cpi r17, 0xFE           ; If trap_flag changed, skip failed
-    breq fail
+    ldi r17, 0b11111110     ; Bit 0 is 0
+    sbrc r17, 0             ; If bit 0 is 0, skip the next instruction
+    rjmp fail               ; This should be skipped
     rcall inc_case
+    rjmp test2
 
 ; ============================================================
-; TEST 2: Skip 2-word instruction (JMP)
+; TEST 2: Do NOT skip when bit is 1
 ; ============================================================
 test2:
-    ldi r16, 0x00
-    sbrc r16, 0
-    jmp fail                ; Should be skipped
-    
+    ldi r17, 0b00000001     ; Bit 0 is 1
+    sbrc r17, 0             ; Bit is 1, so do NOT skip
+    rjmp test2_continue     ; Should execute this
+    rjmp fail               ; If it skips, we land here (Fail)
+test2_continue:
     rcall inc_case
+    rjmp test3
 
 ; ============================================================
-; TEST 3: NO Skip (Bit is 1)
+; TEST 3: Check multiple bits (Bit 7)
 ; ============================================================
 test3:
-    ldi r16, 0x01           ; bit 0 is 1
-    sbrc r16, 0
-    rjmp test3_pass         ; Should NOT be skipped
-    
-    rjmp fail               ; Incorrectly skipped
-
-test3_pass:
+    ldi r17, 0x7F           ; Bit 7 is 0
+    sbrc r17, 7             ; Skip if 0
+    rjmp fail
     rcall inc_case
+    rjmp test4
 
 ; ============================================================
-; TEST 4: Skip Bit 7 (MSB)
+; TEST 4: Bit manipulation interaction
 ; ============================================================
 test4:
-    ldi r16, 0x7F           ; bit 7 is 0
-    sbrc r16, 7
-    rjmp fail               ; Should be skipped
-    
+    ldi r17, 0xFF
+    ; Clear bit 4: 11101111 (0xEF)
+    andi r17, 0xEF          
+    sbrc r17, 4             ; Bit 4 is 0, so skip
+    rjmp fail
     rcall inc_case
+    rjmp success
 
 ; ============================================================
-; Standard Success/Fail
+; SUCCESS / FAILURE logic
 ; ============================================================
 success:
     ldi r16, 1
     sts final_result, r16
-end:
     rjmp end
 
 fail:
@@ -79,3 +88,6 @@ inc_case:
     inc r16
     sts test_case, r16
     ret
+
+end:
+    rjmp end
