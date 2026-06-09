@@ -14,18 +14,20 @@
 
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
 reset:
     ; Initialize stack pointer
-    ldi r16, high(0x08FF)
+    ldi r16, high(stack_start)
     out SPH, r16
-    ldi r16, low(0x08FF)
+    ldi r16, low(stack_start)
     out SPL, r16
 
     ldi r16, 1
     sts test_case, r16
+    ldi r16, 0
     sts final_result, r16
 
     rjmp test1_start
@@ -36,7 +38,9 @@ reset:
 test1_start:
     ldi r16, 0x42
     cpi r16, 0x42
-    brne fail
+    breq test1_ok
+    jmp fail
+test1_ok:
     rcall inc_case
     rjmp test2_start
 
@@ -46,7 +50,9 @@ test1_start:
 test2_start:
     ldi r31, 0x7E
     cpi r31, 0x7E
-    brne fail
+    breq test2_ok
+    jmp fail
+test2_ok:
     rcall inc_case
     rjmp test3_start
 
@@ -56,7 +62,9 @@ test2_start:
 test3_start:
     ldi r17, 0x00
     cpi r17, 0x00
-    brne fail
+    breq test3_ok
+    jmp fail
+test3_ok:
     rcall inc_case
     rjmp test4_start
 
@@ -66,7 +74,9 @@ test3_start:
 test4_start:
     ldi r18, 0xFF
     cpi r18, 0xFF
-    brne fail
+    breq test4_ok
+    jmp fail
+test4_ok:
     rcall inc_case
     rjmp test5_start
 
@@ -76,7 +86,9 @@ test4_start:
 test5_start:
     ldi r19, 0x01
     cpi r19, 0x01
-    brne fail
+    breq test5_ok
+    jmp fail
+test5_ok:
     rcall inc_case
     rjmp test6_start
 
@@ -86,7 +98,9 @@ test5_start:
 test6_start:
     ldi r20, 0x80
     cpi r20, 0x80
-    brne fail
+    breq test6_ok
+    jmp fail
+test6_ok:
     rcall inc_case
     rjmp test7_start
 
@@ -110,40 +124,71 @@ test7_start:
     ldi r29, 0x1D
     ldi r30, 0x1E
     ldi r31, 0x1F
-    
+
     cpi r16, 0x10
-    brne fail
+    breq test7_chk1
+    jmp fail
+test7_chk1:
     cpi r17, 0x11
-    brne fail
+    breq test7_chk2
+    jmp fail
+test7_chk2:
     cpi r18, 0x12
-    brne fail
+    breq test7_chk3
+    jmp fail
+test7_chk3:
     cpi r19, 0x13
-    brne fail
+    breq test7_chk4
+    jmp fail
+test7_chk4:
     cpi r20, 0x14
-    brne fail
+    breq test7_chk5
+    jmp fail
+test7_chk5:
     cpi r21, 0x15
-    brne fail
+    breq test7_chk6
+    jmp fail
+test7_chk6:
     cpi r22, 0x16
-    brne fail
+    breq test7_chk7
+    jmp fail
+test7_chk7:
     cpi r23, 0x17
-    brne fail
+    breq test7_chk8
+    jmp fail
+test7_chk8:
     cpi r24, 0x18
-    brne fail
+    breq test7_chk9
+    jmp fail
+test7_chk9:
     cpi r25, 0x19
-    brne fail
+    breq test7_chk10
+    jmp fail
+test7_chk10:
     cpi r26, 0x1A
-    brne fail
+    breq test7_chk11
+    jmp fail
+test7_chk11:
     cpi r27, 0x1B
-    brne fail
+    breq test7_chk12
+    jmp fail
+test7_chk12:
     cpi r28, 0x1C
-    brne fail
+    breq test7_chk13
+    jmp fail
+test7_chk13:
     cpi r29, 0x1D
-    brne fail
+    breq test7_chk14
+    jmp fail
+test7_chk14:
     cpi r30, 0x1E
-    brne fail
+    breq test7_chk15
+    jmp fail
+test7_chk15:
     cpi r31, 0x1F
-    brne fail
-    
+    breq test7_ok
+    jmp fail
+test7_ok:
     rcall inc_case
     rjmp test8_start
 
@@ -158,18 +203,29 @@ test8_start:
     sev                 ; V=1
     seh                 ; H=1
     set                 ; T=1
-    
+
     ; Execute LDI (should not change flags)
     ldi r16, 0x55
-    
+
     ; Verify all flags still set
-    brcc fail
-    brne fail
-    brmi fail
-    brvs fail
-    brhc fail
-    brtc fail
-    
+    brcs test8_chk1
+    jmp fail
+test8_chk1:
+    breq test8_chk2
+    jmp fail
+test8_chk2:
+    brmi test8_chk3
+    jmp fail
+test8_chk3:
+    brvs test8_chk4
+    jmp fail
+test8_chk4:
+    brhs test8_chk5
+    jmp fail
+test8_chk5:
+    brts test8_ok
+    jmp fail
+test8_ok:
     rcall inc_case
     rjmp test9_start
 
@@ -180,8 +236,9 @@ test9_start:
     ldi r16, 0xAA
     ldi r16, 0xBB
     cpi r16, 0xBB
-    brne fail
-    
+    breq test9_ok
+    jmp fail
+test9_ok:
     rcall inc_case
     rjmp test10_start
 
@@ -193,8 +250,9 @@ test10_start:
     ldi r17, 0x20
     add r16, r17
     cpi r16, 0x30
-    brne fail
-    
+    breq test10_ok
+    jmp fail
+test10_ok:
     rcall inc_case
     rjmp test11_start
 
@@ -206,8 +264,9 @@ test11_start:
     ldi r17, 0x30
     sub r16, r17
     cpi r16, 0x20
-    brne fail
-    
+    breq test11_ok
+    jmp fail
+test11_ok:
     rcall inc_case
     rjmp test12_start
 
@@ -219,26 +278,35 @@ test12_start:
     ldi r26, 0x34
     ldi r27, 0x12
     cpi r26, 0x34
-    brne fail
+    breq test12_chk1
+    jmp fail
+test12_chk1:
     cpi r27, 0x12
-    brne fail
-    
+    breq test12_chk2
+    jmp fail
+test12_chk2:
     ; Initialize Y pointer (R29:R28)
     ldi r28, 0x78
     ldi r29, 0x56
     cpi r28, 0x78
-    brne fail
+    breq test12_chk3
+    jmp fail
+test12_chk3:
     cpi r29, 0x56
-    brne fail
-    
+    breq test12_chk4
+    jmp fail
+test12_chk4:
     ; Initialize Z pointer (R31:R30)
     ldi r30, 0xBC
     ldi r31, 0x9A
     cpi r30, 0xBC
-    brne fail
+    breq test12_chk5
+    jmp fail
+test12_chk5:
     cpi r31, 0x9A
-    brne fail
-    
+    breq test12_ok
+    jmp fail
+test12_ok:
     rcall inc_case
     rjmp test13_start
 
@@ -248,9 +316,9 @@ test12_start:
 test13_start:
     ldi r16, 0x00
     cpi r16, 0x00
-    breq ldi_zero_ok13
-    rjmp fail
-ldi_zero_ok13:
+    breq test13_ok
+    jmp fail
+test13_ok:
     rcall inc_case
     rjmp test14_start
 
@@ -260,7 +328,9 @@ ldi_zero_ok13:
 test14_start:
     ldi r16, 0x55
     cpi r16, 0x55
-    brne fail
+    breq test14_ok
+    jmp fail
+test14_ok:
     rcall inc_case
     rjmp test15_start
 
@@ -270,7 +340,9 @@ test14_start:
 test15_start:
     ldi r16, 0xAA
     cpi r16, 0xAA
-    brne fail
+    breq test15_ok
+    jmp fail
+test15_ok:
     rcall inc_case
     rjmp test16_start
 
@@ -294,7 +366,7 @@ test16_start:
     ldi r29, 13
     ldi r30, 14
     ldi r31, 15
-    
+
     ; Add them all to R16
     add r16, r17
     add r16, r18
@@ -311,11 +383,12 @@ test16_start:
     add r16, r29
     add r16, r30
     add r16, r31
-    
+
     ; Sum 0+1+2+...+15 = 120 (0x78)
     cpi r16, 0x78
-    brne fail
-    
+    breq test16_ok
+    jmp fail
+test16_ok:
     rcall inc_case
     rjmp test17_start
 
@@ -328,8 +401,9 @@ test17_start:
     ldi r16, 0xAD
     pop r17
     cpi r17, 0xDE
-    brne fail
-    
+    breq test17_ok
+    jmp fail
+test17_ok:
     rcall inc_case
     rjmp test18_start
 
@@ -342,10 +416,11 @@ test18_start:
     ldi r16, 0x03
     ldi r16, 0x04
     ldi r16, 0x05
-    
+
     cpi r16, 0x05
-    brne fail
-    
+    breq test18_ok
+    jmp fail
+test18_ok:
     rcall inc_case
     rjmp test19_start
 
@@ -356,13 +431,14 @@ test19_start:
     ldi r16, 10
     ldi r17, 20
     ldi r18, 30
-    
+
     add r16, r17
     add r16, r18
-    
+
     cpi r16, 60
-    brne fail
-    
+    breq test19_ok
+    jmp fail
+test19_ok:
     rcall inc_case
     rjmp test20_start
 
@@ -375,18 +451,27 @@ test20_start:
     ldi r18, 0xFF
     ldi r19, 0xFF
     ldi r20, 0xFF
-    
+
     cpi r16, 0xFF
-    brne fail
+    breq test20_chk1
+    jmp fail
+test20_chk1:
     cpi r17, 0xFF
-    brne fail
+    breq test20_chk2
+    jmp fail
+test20_chk2:
     cpi r18, 0xFF
-    brne fail
+    breq test20_chk3
+    jmp fail
+test20_chk3:
     cpi r19, 0xFF
-    brne fail
+    breq test20_chk4
+    jmp fail
+test20_chk4:
     cpi r20, 0xFF
-    brne fail
-    
+    breq test20_ok
+    jmp fail
+test20_ok:
     rcall inc_case
     rjmp success
 
