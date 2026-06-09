@@ -10,6 +10,7 @@
 ; -------------------------
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
