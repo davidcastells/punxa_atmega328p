@@ -36,6 +36,7 @@
 
 MEMORY_INSTRUCTIONS = ['POP','PUSH','LDX','LDX+','LD-X','LDY','LDY+','LD-Y','LDZ','LD+Z','LD-Z','STX','STX+','ST-X','STY','STY+','ST-Y','STZ','STZ+','ST-Z']
 
+TWO_CYCLE_INSRUCTIONS = ['CALL','JMP','LDS','STS']
  # I need to investigate the spm instruction
 
 def ins_to_str(ins): # I am packing all the OP bits, keeping the order 
