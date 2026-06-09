@@ -27,11 +27,17 @@ test1:
     ldi r17, 5
     mul r16, r17            ; Result in R1:R0
 
-    cpi r0, 50
+    ; Workaround for CPI limitation:
+    mov r16, r0             ; Copy result to high register
+    cpi r16, 50             ; Now we can use CPI
     brne fail
-    cpi r1, 0
+    
+    mov r16, r1             ; Copy high byte to high register
+    cpi r16, 0
     brne fail
+    
     rcall inc_case
+    rjmp test2
 
 ; ============================================================
 ; TEST 2: Identity (Multiplication by 1)
@@ -42,12 +48,17 @@ test2:
     ldi r17, 1
     mul r16, r17
 
-    cpi r0, 200
+    ; Result is in R1:R0. Must move to R16+ to use CPI.
+    mov r18, r0
+    cpi r18, 200            ; Now works: R18 is >= R16
     brne fail
-    cpi r1, 0
+    
+    mov r18, r1
+    cpi r18, 0
     brne fail
     rcall inc_case
-
+    rjmp test3
+    
 ; ============================================================
 ; TEST 3: Multiplication by 0
 ; 123 * 0 = 0
@@ -57,11 +68,15 @@ test3:
     ldi r17, 0
     mul r16, r17
 
-    cpi r0, 0
+    mov r18, r0
+    cpi r18, 0
     brne fail
-    cpi r1, 0
+    
+    mov r18, r1
+    cpi r18, 0
     brne fail
     rcall inc_case
+    rjmp test4
 
 ; ============================================================
 ; TEST 4: Max range (255 * 255 = 65025)
@@ -72,12 +87,17 @@ test4:
     ldi r17, 255
     mul r16, r17
 
-    cpi r0, 0x01            ; Low byte
+    mov r16, r0
+    cpi r16, 0x01           ; Low byte
     brne fail
-    cpi r1, 0xFE            ; High byte
+    
+    mov r16, r1
+    cpi r16, 0xFE           ; High byte
     brne fail
+    
     rcall inc_case
-
+    rjmp success
+    
 ; ============================================================
 ; SUCCESS / FAILURE logic
 ; ============================================================
