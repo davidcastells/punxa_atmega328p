@@ -12,7 +12,13 @@ import punxa_atmega328p as punxa
 from punxa_atmega328p.assembly import assemble_program
 from punxa_atmega328p.interactive_commands import *
 
-def runTest(file):
+
+def prepareTest(file):
+    global hw
+    global cpu
+    global ins_mem
+    global mem
+    
     with open(os.path.join(ex_dir, file), 'r') as f:
         program = f.read()
      
@@ -63,6 +69,13 @@ def runTest(file):
     
     ci._ci_hw = hw
     ci._ci_cpu = cpu
+
+
+    return hw, cpu, ins_mem, mem, symbols
+    
+def runTest(file):
+    
+    hw, cpu, ins_mem, mem , symbols = prepareTest(file)
     
     
     
