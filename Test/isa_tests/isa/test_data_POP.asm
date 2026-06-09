@@ -49,8 +49,8 @@ test1_start:
 test2_start:
     ldi r16, 0xAA
     push r16
-    pop r0
-    cpi r0, 0xAA
+    pop r17
+    cpi r17, 0xAA
     brne fail
     
     ldi r16, 0xBB
