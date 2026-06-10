@@ -401,11 +401,9 @@ def parts_to_ins(parts):
         # COM Rd → 1001 010d dddd 0000
         p0 = 0b1001
         Rd = reg_to_index(parts[1])
-        b = get_int(parts[2])
         p1 = 0b0100 | (Rd>>4)
         p2 = Rd & 0xF
         p3 = 0
-        
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
     elif (op == 'CP'):
@@ -609,8 +607,17 @@ def parts_to_ins(parts):
         Rr = reg_to_index(parts[2])
         p1 = 0b1100 | ((Rr >> 4) << 1) | (Rd>>4)
         p2 = Rd & 0xF
-        p3 = Rr & 0xF
-        
+        p3 = Rr & 0xF        
+        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
+
+    elif (op == 'ORI'):
+        # ORI Rd, K -> 0110 KKKK dddd KKKK
+        p0 = 0b0110
+        r = reg_to_index(parts[1]) 
+        off = get_int(parts[2]) & 0xFF
+        p1 = off >> 4
+        p2 = (r - 16) 
+        p3 = off & 0xF
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
 
     elif (op == 'OUT'):
@@ -741,6 +748,7 @@ def parts_to_ins(parts):
     
     elif (op == 'SBR'):
         # SBR Rd, K -> 0110 KKKK dddd KKKK
+        # Pseudo-Instruction (ORI Rd, K)
         p0 = 0b0110
         r = reg_to_index(parts[1]) 
         off = get_int(parts[2]) & 0xFF
@@ -889,7 +897,10 @@ def is_relative_jump(asm):
     if (parts[0] == 'RCALL'): return True
     if (parts[0] == 'RJMP'): return True    
     if (parts[0] == 'BRBC'): return True
+    if (parts[0] == 'BRBS'): return True
     if (parts[0] == 'BRCC'): return True
+    if (parts[0] == 'BRCS'): return True
+    if (parts[0] == 'BREQ'): return True
     if (parts[0] == 'BRGE'): return True
     if (parts[0] == 'BRNE'): return True
     return False
@@ -903,7 +914,10 @@ def is_valid_relative(asm, delta):
     if (parts[0] == 'RCALL'): return valid12
     if (parts[0] == 'RJMP'): return valid12
     if (parts[0] == 'BRBC'): return valid7
+    if (parts[0] == 'BRBS'): return valid7
     if (parts[0] == 'BRCC'): return valid7
+    if (parts[0] == 'BRCS'): return valid7
+    if (parts[0] == 'BREQ'): return valid7
     if (parts[0] == 'BRGE'): return valid7
     if (parts[0] == 'BRNE'): return valid7
     
