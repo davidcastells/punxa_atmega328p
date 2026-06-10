@@ -276,60 +276,21 @@ class SingleCycleATmega328P(py4hw.Logic):
                 vRr = yield from self.readByte(Rr)
                 vRd = yield from self.readByte(Rd)
                 
-                raise Exception('non finished')
-                Rd7 = (self.reg[self.Rd]>>7)&0b1
-                Rr7 = (self.reg[self.Rr]>>7)&0b1
-
-                self.res =  (self.reg[self.Rd] + self.reg[self.Rr] + (self.SREG & 0b1)) &0xFF
-                Rd3 = (self.reg[self.Rd]>>3)&0b1
-                Rr3 = (self.reg[self.Rr]>>3)&0b1
-
-                R7  = (self.res>>7)&0b1
-                R3  = (self.res>>3)&0b1
-
-                #H
-                if ((Rd3 & Rr3)|(Rr3 & (1 - R3))|(Rd3 & (1 - R3))):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
+                res =  vRd + vRr + self.C
                 
-                #self.SREG &= ~(1<<5) # This is a bipas 
-
-                #C
-                if (Rd7 & Rr7 )|( Rr7 & (not R7))|((not R7) & Rd7):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                #V
-                V = ((Rd7 & Rr7 & (not R7)) | ((not Rd7) & (not Rr7) & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] = self.res & 0xFF
-
-                self.pc += 1
+                self.Z = 1 if (res & 0xFF) == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.C = 1 if res > 0xFF else 0
+                self.H = 1 if (((vRd & 0x0F) + (vRr & 0x0F) + self.C) > 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (vRr >> 7) & 1
+                res_sign = ((res & 0xFF) >> 7) & 1
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res & 0xFF)
+                
+                print(f'ADD R{Rd}, R{Rr}\t\tR{Rd}={res:02X}\t{self.getFlagString()}')
+                
                 
             case 'ADIW':
                 K = (((self.ins>>6)&0b11)<<4)|(self.ins & 0xF)
@@ -372,6 +333,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
             case 'ANDI':
                 # ANDI Rd, K -> 0111 KKKK dddd KKKK
+                # AND immediate
                 K, Rd = K8, (Rd4+16)
                 vRd = yield from self.readByte(Rd)
                 res =  vRd & K 
@@ -382,7 +344,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.S = self.N ^ self.V
 
                 yield from self.writeByte(Rd, res)
-                print(f'AND R{Rd}, R{Rr}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                print(f'AND R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
                 
             case 'ASR':
                 # ASR Rd -> 1001 010d dddd 0101
@@ -467,34 +429,18 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'ORI':
-                raise Exception('ORI not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = ((self.ins>>4) & 0xF) + 16
-                self.res =  self.reg[self.Rd] | self.K 
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-                self.pc += 1
+                # ORI Rd, K -> 0110 KKKK dddd KKKK
+                # OR immediate
+                K, Rd = K8, (Rd4+16)
+                vRd = yield from self.readByte(Rd)
+                res =  vRd | K 
+                self.Z = 1 if (res == 0) else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res)
+                print(f'OR R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                
             case 'EOR':
                 Rr, Rd = Rr5, Rd5
                 vRr = yield from self.readByte(Rr)
@@ -514,36 +460,20 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print(f'EOR R{Rd}, R{Rr}\t\tR{Rd} = {res:02X}\t{self.getFlagString()}')
                 
             case 'COM':
-                raise Exception('COM not reviewed')
+                # COM Rd -> 1001 010d dddd 0000
+                # One's complement
                 Rd = Rd5
                 vRd = yield from self.readByte(Rd)
-                self.res = 0xFF - self.reg[self.Rd] 
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                self.SREG |= (1<<0) #flag C to 1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
+                res = 0xFF - vRd
+                self.C = 1
+                self.H = 1
+                self.Z = 1 if res == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res)
+                print(f'COM R{Rd}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                
             case 'NEG':
                 # NEG Rd -> 1001 010d dddd 0001
                 Rd = Rd5
@@ -561,7 +491,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print('NEG R{Rd}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
                 
             case 'SBR':
-                raise Exception('SBR not reviewed')
+                raise Exception('SBR is a psuedo instruction !!!')
                 self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
                 self.Rd = ((self.ins>>4) & 0xF) + 16
                 self.res =  self.reg[self.Rd] | self.K 
@@ -1084,20 +1014,15 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.skip = bool((vA >> b) & 1) 
                 print('SBIS {A:02X}, {b}\t\tskip={self.skip}')
                     
-            case 'SBI': ## implement write in io 
-                raise Exception('SBI not reviewed')
-                b = (n3 & 0b111)
-                add = ((n >>3) & 0x1F) + 0x20
-
-                v = yield from self.readByte(add)
+            case 'SBI': 
+                # SBI A, b → 1001 1010 AAAAA bbb
+                # Set Bit in I/O register
+                A, b = A5, b3
+                v = yield from self.readByte(A + 0x20)
                 v = v | (1 << b)
-                yield from self.writeByte(add, v)
+                yield from self.writeByte(A + 0x20, v)
+                print('SBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}') 
                 
-                print(f'SBI R{Rd}, {K}\t\tR{Rd}={K:02X}')
-                
-                self.pc += 1
-            
-
             case 'LSL': 
                 raise Exception('LSL not reviewed')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
@@ -1150,46 +1075,25 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
                 
             case 'LSR':
-                raise Exception('LSR not reviewed')
-                self.Rd =  (self.ins>>4)&0x1F
+                # LSR Rd -> 1001 010d dddd 0110
+                # Logical Shift Right
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
+                bit_shifted_out = vRd & 0x01
                 
-                #C 
-                C = self.reg[self.Rd] & 0b1
-
-                if C == 1:
-                    self.SREG |= (1 << 0)
-                else:
-                    self.SREG &= ~(1 << 0)
-
-                self.res = (self.reg[self.Rd]>>1)&0xFF
+                res = (vRd >> 1) 
                 
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                self.SREG &= ~(1<<2) # N is set to 0
-
-                #V
-                V = ((self.SREG&0b1)^0)
-                if V == 1 :
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                
-                #S
-                if V == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-                self.reg[self.Rd] = self.res
-                self.pc += 1
+                self.C = bit_shifted_out
+                self.Z = 1 if res == 0 else 0
+                self.N = 0
+                self.V = self.N ^ self.C
+                self.S = self.N ^ self.V
+                # self.H not affected                 
+                yield from self.writeByte(Rd, res)                
+                print(f'LSR R{Rd}\t\tR{Rd}={res:02X}')
                 
             case 'ROL':
-                raise Exception('ROL not reviewed')
+                raise Exception('ROL IS A PSEUDO - INSTRUCTION')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
                 self.res =  (self.reg[self.Rd] + self.reg[self.Rr] + (self.SREG & 0b1)) &0xFF
@@ -1239,49 +1143,21 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
                 
             case 'ROR':
-                raise Exception('ROR not reviewed')
-                self.Rd =  (self.ins>>4)&0x1F
+                # ROR Rd -> 1001 010d dddd 0111
+                # Rotate right
+                Rd =  Rd5
+                vRd = yield from self.readByte(Rd)
+                
+                C = vRd & 1
+                res = (vRd >> 1) | (self.C << 7)
 
-                #C 
-                C = self.reg[self.Rd] & 0b1
-
-                self.res = (self.reg[self.Rd]>>1 & 0xFF) | (self.SREG&0b1)<<7
-
-                if C == 1:
-                    self.SREG |= (1 << 0)
-                else:
-                    self.SREG &= ~(1 << 0)
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = R7^C
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] = self.res & 0xFF
-
-                self.pc += 1
-            
+                self.Z = 0 if res == 0 else 1
+                self.C = C
+                self.N = res & 0x80
+                self.V = vRd ^ C
+                # self.H = undefined
+                yield from self.writeByte(Rd, res)
+                print(f'ROR R{Rd}\t\tR{Rd}={res:02X}')
 
             case 'SUB':
                 # SUB Rd, Rr -> 0001 10rd dddd rrrr
