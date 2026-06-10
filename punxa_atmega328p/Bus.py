@@ -24,7 +24,7 @@ class MultiplexedBus(Logic):
                 size = slave[2]
 
                 if (size > addressSize):
-                    print("what")
+                    print("WARNING: provided size bigger that address size")
 
             stop = start + size - 1
         

@@ -5,4 +5,19 @@ Punxa-ATmega328P provides HDL models of different parts of a full ATmega328P sys
 
 The single-cycle version suppports full system simulation.
 
+## Assembly
+
+We implemented an assembler. It supports the following features:
+
+- Instructions and pseudo-instructions
+- Labels
+- Simple macros (high, low)
+
 ## Testing
+
+We have some ISA tests with the following results.
+
+Total: 67 Correct: 24 (35.8 %)
+<pre>
+35.8 %   |█████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░|
+</pre>

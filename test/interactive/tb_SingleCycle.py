@@ -6,7 +6,6 @@ Created on Tue May 19 16:56:55 2026
 """
 
 import py4hw
-
 import punxa_atmega328p as punxa
 
 #from punxa_atmega328p.single_cycle.singlecycle_processor import SingleCycleATmega328P
@@ -25,6 +24,26 @@ aw = 16
 # 0x0060 - 0x00FF   Extended I/O Registers
 #   0x00C0 - 0x00C6    USART
 # 0x0100 - 0x08FF   Internal SRAM
+dw = 8 
+aw = 16
+
+
+#                +-----+     +------------------------------+
+#                | bus |--R--| GP Registers + I/O Registers |
+#                |     |     +------------------------------+
+#  +-----+       |     |     +-------+
+#  | CPU |--data-|     |--B--| USART |
+#  |     |       |     |     + ------+
+#  |     |       |     |     +------+
+#  |     |       |     |--U--| SRAM |
+#  |     |       |     |     +------+
+#  |     |       +-----+
+#  |     |       +-------+
+#  |     |--ins--| Flash |
+#  +-----+       +-------+
+
+data_p = punxa.MemoryInterface(hw, 'data_mem', dw, aw)
+ins_p = punxa.MemoryInterface(hw, 'ins_mem', 16, 14)
 
 cpu_p = punxa.MemoryInterface(hw, 'cpu', dw, aw)
 reg_p = punxa.MemoryInterface(hw, 'reg', dw, 5)         # 2^5 = 32 registers

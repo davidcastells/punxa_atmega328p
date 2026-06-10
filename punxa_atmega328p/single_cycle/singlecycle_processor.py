@@ -1,6 +1,7 @@
 import py4hw
 import punxa_atmega328p as punxa
 from punxa_atmega328p.instruction_decode import ins_to_str
+from punxa_atmega328p.instruction_decode import TWO_CYCLE_INSRUCTIONS
 from punxa_atmega328p.instruction_decode import MEMORY_INSTRUCTIONS
 
 from punxa_atmega328p.csr import *
@@ -21,7 +22,11 @@ from deprecated import deprecated
 # R31 Z-register High Byte
  
 # interupt wires to add: INT0, INT1, PCINT0, PCINT1, PCINT2, WDT, TIMER2 COMPA, TIMER2 COMPB, TIMER2 OVF, TIMER1 CAPT, TIMER1 COMPA, TIMER1 COMPB, TIMER1 OVF, TIMER0 COMPA, TIMER0 COMPB, TIMER0 OVF, SPI/STC , USART/RX , USART/UDRE , USART/TX , ADC , EE READY , ANALOG COMP, TWI, SPM READY.
- 
+
+SPL_REG =   0x5D 
+SPH_REG =   0x5E
+SREG_REG =  0x5F
+
 
 class SingleCycleATmega328P(py4hw.Logic):
     def __init__(self,parent, name:str , ins_mem:MemoryInterface, memory:MemoryInterface, reset_address):
@@ -47,37 +52,30 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.next_cycle = False #varible to indicate that data is ready to read from ram/memeory
         self.ins = 0
         self.opp = 'NOP'
-        self.Rr = 0
-        self.Rd = 0
-        self.res = 0
-        self.K = 0
         self.FirstBoot = True #is this actuatly odable ?
         self.BOOTRST = 1
         self.databyteNb = 0
-        self.FSM = 'Begin' 
-
-        self.A = 0
-        self.q = 0
-        self.high = 0
-        self.low = 0
-
-        #registers
-        self.SREG = 0 # b7: I b6: T b5: H b4: S b3: V b2: N b1: Z b0: C 
-        self.SREG_addr_IO = 0x3F
-        self.SREG_addr_LS = 0x5F
-
+        
+        # Registers
+        self.SP = 0
+        
+        # Status flags
+        self.Z = 0
+        self.N = 0
+        self.C = 0
+        self.V = 0
+        self.S = 0
+        self.H = 0
+        self.T = 0
+        self.I = 0
+        
         self.MCUCR = 0
         self.MCUCR_addr_IO = 0x35
         self.MCUCR_addr_LS = 0x55
 
         #Stack Pointer
-        self.SPH = 0x08
-        self.SPH_addr_IO = 0x3E
-        self.SPH_addr_LS = 0x5E
+        
 
-        self.SPL = 0xFF
-        self.SPL_addr_IO = 0x3D
-        self.SPH_addr_LS = 0x5D
 
         self.MCUSR = 0x02 # Power-on Reset  or it can be 0x02 External Reset
         self.MCUSR_addr_IO = 0x34
@@ -106,6 +104,7 @@ class SingleCycleATmega328P(py4hw.Logic):
         self.csr[CSR_INSTRET] = 0
         self.csr[CSR_CYCLE] = 0
         
+        self.skip = False  # Skip flag to support skip instructions
         
         self.co = self.run()
 
@@ -132,10 +131,26 @@ class SingleCycleATmega328P(py4hw.Logic):
 
     def getCSR(self, csr):
         # only assuming insret is implemented
+        return self.csr[csr] 
         
-        return self.csr[CSR_INSTRET] 
-        
-#    def HandleInterupts(self):
+    def getSREG(self):
+        '''
+        Returns the SREG register and the string with the name of the flags
+        '''
+        SREG = (self.I << 7) | (self.T<<6) | (self.H<<5) | (self.S<<4) | (self.V<<3) | (self.N<<2) | (self.Z<<1) | self.C 
+        sSREG = 'ITHSVNZC'[::-1]
+        return SREG, sSREG
+    
+    def setSREGField(self, f, v):
+        match (f):
+            case 0: self.C = v
+            case 1: self.Z = v
+            case 2: self.N = v
+            case 3: self.V = v
+            case 4: self.S = v
+            case 5: self.H = v
+            case 6: self.T = v
+            case 7: self.I = v
     
     def writeByte(self, add, value):
         self.mem.write.prepare(1)
@@ -149,75 +164,20 @@ class SingleCycleATmega328P(py4hw.Logic):
             # wait until response
             yield
             
+        yield
+    
     def readByte(self, add):
         self.mem.write.prepare(0)
         self.mem.read.prepare(1) 
         self.mem.address.prepare(add)
         yield
         self.mem.read.prepare(0) 
-
+        
         while (self.mem.resp.get() == 0):
             # wait until response
             yield
             
         return self.mem.read_data.get()
-        
-
-    @deprecated
-    def writeToMemory(self,Rr,A,q):
-        self.A = A
-        self.Rr = Rr
-
-        #preparing write operation
-        if (self.databyteNb == 1) and (self.mem.resp.get() == 1):
-            self.mem.write.prepare(0)
-            self.mem.read.prepare(0) 
-        else:
-            self.mem.write.prepare(1)
-            self.mem.read.prepare(0)
-
-        if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-            #writing the first byte
-            self.mem.address.prepare(self.A+q)
-            self.mem.write_data.prepare(self.reg[self.Rd])  
-            self.databyteNb = 1 
-            print("byte 1")
-        elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-            self.pc += 1
-            self.databyteNb = 0
-
-
-    @deprecated
-    def readFromMemory(self,Rd,A,q):
-        # self.A = A
-        # self.Rd = Rd
-        # val = 0
-
-        # if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-        #     self.mem.write.prepare(0)
-        #     self.mem.read.prepare(1)
-        #     self.mem.address.prepare(A)
-
-
-        # elif (self.databyteNb == 0) and (self.mem.resp.get() == 1):
-        #     val = self.mem.read_data.get()
-        #     self.databyteNb = 1 
-        #     self.mem.write.prepare(0)
-        #     self.mem.read.prepare(0)
-        #     print("byte 1")
-
-
-        # elif (self.databyteNb == 2) and (self.mem.resp.get() == 1):
-
-        #     print("low=",bin(self.low))
-        #     self.databyteNb = 0
-        #     print("byte 2")
-        #     self.K = (self.high<<8) | self.low
-        #     self.pc  = self.K
-        #     SP = ((self.SPH<<8) | (self.SPL))+2
-        #     self.SPH = (SP>>8)&0xFF
-        #     self.SPL = SP&0xFF
-        pass
 
 
     def readInsWord(self):
@@ -234,496 +194,210 @@ class SingleCycleATmega328P(py4hw.Logic):
         
         
     def fetchIns(self):
-        # if(((self.SREG&1<<7)>>7)==1):# interruption
-        #         print('interruption')
-        # self.pc = self.pc & 0x3FFF
-
-        # self.ins =  self.flash[self.pc]
-        
         print(f'{self.pc:04X} - ', end='')
         self.ins = yield from self.readInsWord()
-        
         
         #print(f'FETCH INS: {self.pc:04X} -  {self.ins:04X}')
         
 
-
+    def getFlagString(self):
+        sZ = 'Z' if (self.Z) else ' '
+        sC = 'C' if (self.C) else ' '
+        sN = 'N' if (self.N) else ' '
+        sV = 'V' if (self.V) else ' '
+        sH = 'H' if (self.H) else ' '
+        sS = 'S' if (self.S) else ' '
+        
+        return f'{sZ}{sC}{sN}{sV}{sH}{sS}'
+        
 
     def execute(self):
-        n0 = (self.ins >> 12) & 0xF
-        n1 = (self.ins >> 8) & 0xF
-        n2 = (self.ins >> 4) & 0xF
-        n3 = self.ins & 0xF
-        
         self.opp =  ins_to_str(self.ins)
+        
+        b3 = self.ins & 0b111
+        s3 = (self.ins>>4) & 0b111
+        
+        Rd4 = ((self.ins>>4) & 0xF)
+        Rd5 = ((self.ins>>4) & 0x1F)
+        RdW = 24 + (((self.ins >> 4) & 0b11) * 2)
 
+        Rr5 = (((self.ins>>9) & 1) << 4) | (self.ins & 0xF)
+        
+        K6 = (((self.ins>>6) & 0b11) << 4) | (self.ins & 0xF)
+        K7 = (self.ins>>3) & 0b1111111 
+        K8 = (((self.ins>>8) & 0xF) << 4) | (self.ins & 0xF)
+        
+        sK7 = py4hw.IntegerHelper.c2_to_signed(K7, 7)
+        
+        A5 = (self.ins >> 3) & 0x1F
+        A6 = ((((self.ins)>>9) & 0b11)<<4) | ((self.ins) & 0xF)  
+        
+        #print(f'{self.ins:04X}', self.opp)
+        
+        # We fetch address for 2 word instructions here to easily handle
+        # skip instructions correctly
+        if (self.opp in TWO_CYCLE_INSRUCTIONS):
+            add = yield from self.readInsWord()
+
+        if (self.skip):
+            # Skip next instruction
+            self.skip = False
+            return
+        
         match self.opp: 
             case 'ADD':
-                raise Exception('not reviewed')
-                Rr = n3 | ((n1&0b10)<<4)
-                Rd = n2 | ((n1&0b1)<<4)
-                Rr_val = yield from self.readByte(Rr)
-                Rd_val = yield from self.readbyte(Rd)
-                Res = (Rr_val + Rd_val)&0xFF
+                # ADD Rd, Rr -> 0000 11rd dddd rrrr
+                Rr, Rd = Rr5, Rd5
                 
-                Rd7 = (Rd_val>>7)&0b1
-                Rr7 = (Rr_val>>7)&0b1
-                R7 = (Res>>7)&0b1
-                updated_SREG = 0
-                #C
-                if (Rd7 & Rr7 )|( Rr7 & (not R7))|((not R7) & Rd7):
-                    updated_SREG |= (1<<0)
-                else:
-                    updated_SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    updated_SREG |= (1<<1)
-                else:
-                    updated_SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    updated_SREG |= (1<<2)
-                else:
-                    updated_SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & Rr7 & (not R7)) | ((not Rd7) & (not Rr7) & R7))&0b1
-
-                if V == 1:
-                    updated_SREG |= (1<<3)
-                else:
-                    updated_SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    updated_SREG |= (1<<4)
-                else:
-                    updated_SREG &= ~(1<<4)
-
-                #H
-                Rd3= (Rd_val>>3)&0b1
-                Rr3= (Rr_val>>3)&0b1
-                R3 = (res>>3)&0b1
-                if (Rd3 & Rr3)|(Rr3 & (not R3))|((not R3) & Rd3):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
                 
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
-
-
-
+                res = vRd + vRr
+                
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.C = 1 if (res > 0xFF) else 0                
+                self.H =  1 if (((vRd & 0x0F) + (vRr & 0x0F)) > 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
+                rr_sign = (vRr >> 7) & 1      # Bit 7 of Rr
+                res_sign = (res >> 7) & 1     # Bit 7 of result
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res)
+                
+                print(f'ADD R{Rd}, R{Rr}\t\tR{Rd}={res:02X}\t{self.getFlagString()}')
+                
+                
             case 'ADC': # there may be a problem with this but I don't know what is the problem
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>4) & 0x1F)
-                Rd7 = (self.reg[self.Rd]>>7)&0b1
-                Rr7 = (self.reg[self.Rr]>>7)&0b1
-
-                self.res =  (self.reg[self.Rd] + self.reg[self.Rr] + (self.SREG & 0b1)) &0xFF
-                Rd3 = (self.reg[self.Rd]>>3)&0b1
-                Rr3 = (self.reg[self.Rr]>>3)&0b1
-
-                R7  = (self.res>>7)&0b1
-                R3  = (self.res>>3)&0b1
-
-                #H
-                if ((Rd3 & Rr3)|(Rr3 & (1 - R3))|(Rd3 & (1 - R3))):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
+                # 
+                Rr, Rd = Rr5, Rd5
                 
-                #self.SREG &= ~(1<<5) # This is a bipas 
-
-                #C
-                if (Rd7 & Rr7 )|( Rr7 & (not R7))|((not R7) & Rd7):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                #V
-                V = ((Rd7 & Rr7 & (not R7)) | ((not Rd7) & (not Rr7) & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] = self.res & 0xFF
-
-                self.pc += 1
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd + vRr + self.C
+                
+                self.Z = 1 if (res & 0xFF) == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.C = 1 if res > 0xFF else 0
+                self.H = 1 if (((vRd & 0x0F) + (vRr & 0x0F) + self.C) > 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (vRr >> 7) & 1
+                res_sign = ((res & 0xFF) >> 7) & 1
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res & 0xFF)
+                
+                print(f'ADD R{Rd}, R{Rr}\t\tR{Rd}={res:02X}\t{self.getFlagString()}')
+                
+                
             case 'ADIW':
-                raise Exception('not reviewed')
-                self.K = (((self.ins>>6)&0b11)<<4)|(self.ins & 0xF)
-                self.Rd = 24 + (((self.ins >> 4) & 0b11) * 2)
-                self.res =  (self.reg[self.Rd+1]<<8|self.reg[self.Rd])  +  self.K
+                K = (((self.ins>>6)&0b11)<<4)|(self.ins & 0xF)
+                Rd = RdW 
+                vRdh = yield from self.readByte(Rd+1)
+                vRdl = yield from self.readByte(Rd)
+                
+                res =  (vRdh <<8 | vRdl )  +  K
 
-                Rdh7 = ((self.reg[self.Rd+1]>>7)&0b1)
-                R15 = ((self.res>>15)&0b1)
-
-                #C
-                if (not R15) & Rdh7:
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z
-                N = (self.res == 0)
-                if N == 1:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R15 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = (not Rdh7) & R15
-                if V == 1 :
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if (N)^(V):
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] =  self.res & 0xFF
-                self.reg[self.Rd+1] =  (self.res>>8) & 0xFF
-
-                self.pc += 1
-            case 'SUB':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  (self.reg[self.Rd] - self.reg[self.Rr]) & 0xFF
-
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #C
-                if ((not Rd7) & Rr7 )|( Rr7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not Rr7) & (not R7)) | ((not Rd7) & Rr7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & Rr3)|(Rr3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-                self.reg[self.Rd] =  self.res & 0xFF
-
-                self.pc += 1
-            case 'SUBI':
-                raise Exception('not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = 16 + ((self.ins >> 4) & 0xF)
-                self.res = self.reg[self.Rd] - self.K
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-
-
-                self.reg[self.Rd] =  self.res & 0xFF
-
-                self.pc += 1
-            case 'SBC':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] - self.reg[self.Rr] - (self.SREG & 0b1)
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #C
-                if ((not Rd7) & Rr7 )|( Rr7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                current_Z = (self.SREG >> 1) & 0b1
-                if (self.res&0xFF == 0) and current_Z == 1:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not Rr7) & (not R7)) | ((not Rd7) & Rr7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & Rr3)|(Rr3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-                self.reg[self.Rd] =  self.res & 0xFF
-                self.pc += 1
-            case 'SBCI':
-                raise Exception('not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = ((self.ins>>4) & 0xF) + 16
-                self.res =  self.reg[self.Rd] - self.K - (self.SREG & 0b1)
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                current_Z = (self.SREG >> 1) & 0b1
-                if (self.res&0xFF == 0) and current_Z == 1:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-                self.reg[self.Rd] =  self.res & 0xFF
-                self.pc += 1
-            case 'SBIW':
-                raise Exception('not reviewed')
-                self.K = (((self.ins>>6)&0b11)<<4)|(self.ins & 0xF)
-                self.Rd = 24 + (((self.ins>>4)&0b11) * 2)
-                self.res =  (self.reg[self.Rd+1]<<8|self.reg[self.Rd]) -  self.K
-
-                Rdh7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                R15 = ((self.res&0xFF)>>7)&0b1
-
-                #C
-                if R15 & (not Rdh7):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if (self.res&0xFF == 0):
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R15 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-
-                V = (not R15) & Rdh7 
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R15:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-                self.reg[self.Rd] =  self.res&0xFF
-                self.reg[self.Rd+1] = (self.res>>8)&0xFF 
-
-                self.pc += 1
+                resh = (res >> 8) & 0xFF
+                resl = res & 0xFF
+                
+                self.Z = 1 if (res == 0) else 0
+                self.C = 1 if (res > 0xFFFF) else 0
+                self.N = 1 if (res & 0x8000) else 0
+                rd_sign = (vRdh >> 7) & 1
+                res_sign = (res >> 15) & 1
+                self.V = 1 if (rd_sign == 0) and (res_sign == 1) else 0
+                self.S = self.N ^ self.V
+                
+                print(f'ADIW R{Rd}, {K}\t\tR{Rd+1}={resh:02X} R{Rd}={resl:02X} {self.getFlagString()}')
+                
             case 'AND':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] & self.reg[self.Rr]
+                # AND Rd, Rr -> 0010 00rd dddd rrrr
+                Rr, Rd = Rr5, Rd5
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd & vRr
 
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
+                self.Z = 1 if (res == 0) else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res)
+                
+                print(f'AND R{Rd}, R{Rr}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                
+                
             case 'ANDI':
-                raise Exception('not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = ((self.ins>>4) & 0xF) + 16
-                self.res =  self.reg[self.Rd] & self.K 
+                # ANDI Rd, K -> 0111 KKKK dddd KKKK
+                # AND immediate
+                K, Rd = K8, (Rd4+16)
+                vRd = yield from self.readByte(Rd)
+                res =  vRd & K 
 
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
+                self.Z = 1 if (res == 0) else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
 
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
+                yield from self.writeByte(Rd, res)
+                print(f'AND R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                
+            case 'ASR':
+                # ASR Rd -> 1001 010d dddd 0101
+                # Arithmetic Shift Right
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
+                bit_shifted_out = vRd & 0x01
+                
+                sign = ((vRd >> 7) & 1) << 7
+                res = (vRd >> 1) | sign
+                
+                self.C = bit_shifted_out
+                self.Z = 1 if res == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = self.N ^ self.C
+                self.S = self.N ^ self.V
+                # self.H not affected                 
+                yield from self.writeByte(Rd, res)                
+                print(f'ASR R{Rd}\t\tR{Rd}={res:02X}')
+                
+            case 'BRBC':
+                # BRBC s, k -> 1111 01kk kkkk ksss
+                K, S = sK7, b3
+                SREG, sSREG = self.getSREG()
+                cond = ((SREG >> S) == 0)
+                if (cond):
+                    self.pc += K 
+                print(f'BRBC {S}, {K:02X}\t\t{sSREG[S]}={cond}')
+                
+            case 'BRBS':
+                # BRBS s, k -> 1111 00kk kkkk ksss
+                K, S =  sK7,  b3
 
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-
-                self.reg[self.Rd] =  self.res
-                self.pc += 1
+                SREG, sSREG = self.getSREG()
+                
+                cond = ((SREG >> S) == 1)
+                
+                if (cond):
+                    self.pc += K 
+                
+                print(f'BRBS {S}, {K:02X}\t\t{sSREG[S]}={cond}')
+                
+            case 'CBI': 
+                # CBI A, b -> 1001 1000 AAAA Abbb
+                # Clears bit in I/O register
+                A, b = A5, b3
+                v = yield from self.readByte(A + 0x20)
+                v = (1 << b) | (v & ~(1<<b))
+                yield from self.writeByte(A + 0x20, v)
+                print('CBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}')                
+                
             case 'OR':
-                raise Exception('not reviewed')
+                raise Exception('OR not reviewed')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
                 self.res =  self.reg[self.Rd] | self.reg[self.Rr]
@@ -755,140 +429,69 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'ORI':
-                raise Exception('not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = ((self.ins>>4) & 0xF) + 16
-                self.res =  self.reg[self.Rd] | self.K 
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-                self.pc += 1
-            case 'EOR':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] ^ self.reg[self.Rr]
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
-            case 'COM':
-                raise Exception('not reviewed')
-                self.Rd = ((self.ins>>4) & 0x1F)
-                self.res = 0xFF - self.reg[self.Rd] 
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                self.SREG |= (1<<0) #flag C to 1
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                N = (R7 == 1)
-                if N == 1 : 
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                self.SREG &= ~(1<<3) #flag V to 0
-
-                #S 
-                if N == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)  
-
-                self.reg[self.Rd] =  self.res
-
-                self.pc += 1
-            case 'NEG':
-                raise Exception('not reviewed')
-                self.Rd = ((self.ins>>4) & 0x1F)
-                self.res = (0x00 - self.reg[self.Rd]) & 0xFF 
-
-                R7 = ((self.res&0xFF)>>7)&0b1
-                #C
-                if self.res != 0:
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
+                # ORI Rd, K -> 0110 KKKK dddd KKKK
+                # OR immediate
+                K, Rd = K8, (Rd4+16)
+                vRd = yield from self.readByte(Rd)
+                res =  vRd | K 
+                self.Z = 1 if (res == 0) else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res)
+                print(f'OR R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
                 
-                #V
-                V = (self.res == 0x80)
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
+            case 'EOR':
+                Rr, Rd = Rr5, Rd5
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd ^ vRr
 
-                #H
-                Rd3= ((self.reg[self.Rd])>>3)&0b1
-                R3 = (self.res>>3)&0b1
-                if (1- Rd3) | R3 :
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.C = 0
+                self.V = 0
+                self.S = self.N
+                self.H = 0
+                
+                yield from self.writeByte(Rd, res)
+                
+                print(f'EOR R{Rd}, R{Rr}\t\tR{Rd} = {res:02X}\t{self.getFlagString()}')
+                
+            case 'COM':
+                # COM Rd -> 1001 010d dddd 0000
+                # One's complement
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
+                res = 0xFF - vRd
+                self.C = 1
+                self.H = 1
+                self.Z = 1 if res == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.V = 0
+                self.S = self.N ^ self.V
+                yield from self.writeByte(Rd, res)
+                print(f'COM R{Rd}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                
+            case 'NEG':
+                # NEG Rd -> 1001 010d dddd 0001
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
+                res = (-vRd) & 0xFF
 
-                self.reg[self.Rd] =  self.res
-                self.pc += 1
+                self.Z = 1 if res == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.C = 1 if res != 0 else 0
+                self.H = 1 if ((res & 0x08) != 0) else 0
+                self.V = 1 if (vRd == 0x80) else 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res )
+                print('NEG R{Rd}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
+                
             case 'SBR':
-                raise Exception('not reviewed')
+                raise Exception('SBR is a psuedo instruction !!!')
                 self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
                 self.Rd = ((self.ins>>4) & 0xF) + 16
                 self.res =  self.reg[self.Rd] | self.K 
@@ -917,8 +520,9 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] =  self.res
                 self.pc += 1
                 self.pc += 1
+                
             case 'CBR':
-                raise Exception('not reviewed')
+                raise Exception('CBR not reviewed')
                 self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
                 self.Rd = ((self.ins>>4) & 0xF)
                 self.res =  self.reg[self.Rd] & self.K 
@@ -930,104 +534,60 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.reg[self.Rd] =  self.res 
                 self.pc += 1
+                
             case 'INC':
-                raise Exception('not reviewed')
-                self.Rd = ((self.ins>>4) & 0x1F)
-                self.res = (self.reg[self.Rd] + 1) & 0xFF
+                # INC Rd --> 1001 010d dddd 0011.
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
                 
-                R7 =  ((self.res&0xFF)>>7)&0b1
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
+                res = vRd + 1
                 
-                #V
-                V = (self.Rd == 0x80)
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.V = 1 if vRd == 0x7F else 0
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res & 0xFF)
 
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-
-                self.reg[self.Rd] =  self.res 
-                self.pc += 1
+                print(f'INC\t\t\t\t{self.getFlagString()}')
+                
             case 'DEC':
-                raise Exception('not reviewed')
-                self.Rd = ((self.ins>>4) & 0x1F)
-                self.res = (self.reg[self.Rd] - 1) & 0xFF
-
-                R7 =  ((self.res&0xFF)>>7)&0b1
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
+                # DEC Rd --> 1001 010d dddd 1010.
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
                 
-                #V
-                V = (self.Rd == 0x80)
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
+                res = vRd - 1
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res >> 7) 
+                self.V = 1 if (vRd == 0x80) else 0 
+                self.S = self.N ^ self.V
+                
+                yield from self.writeByte(Rd, res & 0xFF)
 
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] =  self.res
-                self.pc += 1
+                print(f'INC\t\t\t\t{self.getFlagString()}')
+                
             case 'SER':
-                raise Exception('not reviewed')
+                raise Exception('SER not reviewed')
                 self.Rd = (self.ins>>4)&0b1111 + 16
                 self.reg[self.Rd] = 0xFF
         
 
                 self.pc +=1 
             case 'MUL':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] * self.reg[self.Rr]
+                Rr, Rd = Rr5, Rd5
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                res =  vRd * vRr
 
-                R15 = (self.res>>15) & 0b1
-
-                if R15 == 1:
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0) 
-
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                self.reg[1] = (self.res>>8) &0xFF
-                self.reg[0] = self.res & 0xFF
-
-                self.pc += 1
+                yield from self.writeByte(1, (res >> 8) & 0xFF)
+                yield from self.writeByte(0, res & 0xFF)
+                
+                self.Z = 1 if (res == 0) else 0
+                self.C = 1 if (res & 0x8000) else 0   
+                print(f'MUL R{Rd}, R{Rr}\t\tR1:R0={res:04X}\t{self.getFlagString()}')
+    
             case 'MULS': 
-                raise Exception('not reviewed')
+                raise Exception('MULS not reviewed')
                 self.Rr = (self.ins & 0xF) + 16
                 self.Rd = ((self.ins>>4) & 0xF) + 16
 
@@ -1058,7 +618,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'MULSU':
-                raise Exception('not reviewed')
+                raise Exception('MULSU not reviewed')
                 self.Rr = (self.ins & 0b111) + 16
                 self.Rd = ((self.ins>>4) & 0b111) + 16
 
@@ -1089,7 +649,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'FMUL':
-                raise Exception('not reviewed')
+                raise Exception('FMUL not reviewed')
                 self.Rr = (self.ins & 0b111) + 16
                 self.Rd = ((self.ins>>4) & 0b111) + 16
                 self.res =  (self.reg[self.Rd]&0xFF) * (self.reg[self.Rr]&0xFF)
@@ -1113,7 +673,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'FMULS': 
-                raise Exception('not reviewed')
+                raise Exception('FMULS not reviewed')
                 self.Rr = (self.ins & 0b111) + 16
                 self.Rd = ((self.ins>>4) & 0b111) + 16
                 val_Rd = self.reg[self.Rd] & 0xFF
@@ -1145,7 +705,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'FMULSU':
-                raise Exception('not reviewed')
+                raise Exception('FMULSU not reviewed')
                 self.Rr = (self.ins & 0b111) + 16 
                 self.Rd = ((self.ins>>4) & 0b111) + 16
 
@@ -1184,61 +744,28 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print(f'RJMP {soff}')
                 
             case 'IJMP':
-                raise Exception('not reviewed')
+                raise Exception('IJMP not reviewed')
                 self.pc  = + (self.reg[30] | self.reg[31]<<8)
             case 'JMP':
-                raise Exception('not reviewed')
-                self.K = (((self.ins>>4)&0x1F)<<17)|(self.ins&0b1<<16)|self.flash[self.pc+1] 
-                self.pc = self.K
+                # add is loaded in the skip logic
+                self.pc = add
+                print(f'JMP {add:04X}')
+                
             case 'RCALL':
-                raise Exception('not reviewed')
-                self.K = self.ins&0xFFF
-                #handeling negative K numbers
-                if self.K>>11 == 1:
-                    self.K = -(((~self.K)&0xFFF) + 1)
-                else:
-                    self.K = self.K
-                    
-                SP = ((self.SPH<<8) | (self.SPL))
-                print("SP=",SP)
-                PC_to_store = (self.pc+1)&0xFFFF
-                print("PC_to_store=",bin(PC_to_store))
-                #separation of PC in 2 bytes
-
-                PClwo = PC_to_store&0xFF
-                PChigh = PC_to_store>>8
-                print("PClwo=",bin(PClwo))
-                print("PChigh=",bin(PChigh))
-
-                #preparing write operation
-                if self.databyteNb == 2:
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0) 
-                else:
-                    self.mem.write.prepare(1)
-                    self.mem.read.prepare(0)
-
-                if (self.databyteNb == 0) and (self.mem.resp.get() == 0):
-                    #writing the first byte
-                    self.mem.address.prepare(SP)
-                    self.mem.write_data.prepare(PClwo)  
-                    self.databyteNb = 1 
-                    print("byte 1")
-                elif((self.databyteNb == 1) and (self.mem.resp.get() == 1)):# if it is time to write the second byte and the memory finished writing the first byte
-                    self.mem.address.prepare(SP-1)
-                    self.mem.write_data.prepare(PChigh)
-                    self.databyteNb = 2
-                    #changing the stack pointer
-                    SP -= 2
-                    self.SPH = (SP>>8)&0xFF
-                    self.SPL = SP&0xFF
-                    print("byte 2")
-                elif((self.databyteNb == 2) and (self.mem.resp.get() == 1)):
-                    self.pc += self.K + 1
-                    self.databyteNb = 0
+                K = py4hw.IntegerHelper.c2_to_signed(self.ins & 0xFFF, 12)
+                ra = self.pc
+                
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra >> 8)
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra & 0xFF)
+                
+                self.pc += K                    
+                
+                print(f'RCALL {K:03X}\t\t[{self.SP+1:04X}]={ra>>8:02X} [{self.SP:04X}]={ra & 0xFF}')
                     
             case 'ICALL':
-                raise Exception('not reviewed')
+                raise Exception('ICALL not reviewed')
                 self.A = (self.reg[30]&0xFF) | ((self.reg[31]&0xFF)<<8) 
                 SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
 
@@ -1293,101 +820,27 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                         self.pc = self.A  
             case 'CALL':
-                raise Exception('not reviewed')
-                self.K = (((self.ins>>4)&0x1F)<<17)|((self.ins&0b1)<<16)|self.flash[self.pc+1] 
-                SP = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
+                # add is loaded in the skip logic
+                ra = self.pc
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra >> 8)
+                self.SP -= 1
+                yield from self.writeByte(self.SP, ra & 0xFF)
+                self.pc = add
+                print(f'CALL {add:03X}\t\t[{self.SP+1:04X}]={ra>>8:02X} [{self.SP:04X}]={ra & 0xFF}')
 
-
-                PC_to_store = (self.pc+2)&0xFFFF
-
-
-                PClwo = PC_to_store&0xFF
-                PChigh = (PC_to_store>>8)&0xFF
-
-
-                match self.insFiniteStateMachine:
-
-                    case 'START':
-                        self.mem.write.prepare(1)
-                        self.mem.read.prepare(0)
-
-                        self.mem.address.prepare(SP)
-                        self.mem.write_data.prepare(PClwo)
-
-                        if(self.mem.resp.get() == 1):
-                            self.insFiniteStateMachine = 'STEP1'
-
-                    case 'STEP1':
-
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(0)
-                    
-                        self.insFiniteStateMachine = 'STEP2'
-
-                    case 'STEP2':
-
-                        self.mem.write.prepare(1)
-                        self.mem.read.prepare(0)
-                    
-                        self.mem.address.prepare(SP-1)
-                        self.mem.write_data.prepare(PChigh)
-
-                        if(self.mem.resp.get() == 1):
-                            self.insFiniteStateMachine = 'STEP3'
-
-                    case 'STEP3':
-
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(0)
-                            
-                        self.insFiniteStateMachine = 'START'
-
-                        SP = SP - 2
-                        self.SPH = (SP>>8)&0xFF
-                        self.SPL = SP&0xFF
-
-                        self.pc = self.K
+                        
             case 'RET':
-                raise Exception('not reviewed')
-
-                match self.insFiniteStateMachine:
-                    
-                    case 'START':
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+1
-
-                        self.mem.address.prepare(SP)
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1)
-
-                        if self.mem.read.get() == 1:
-                            self.insFiniteStateMachine = 'STEP1'
-                            
-                    case 'STEP1':
-                        self.high = self.mem.read_data.get()
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(0)
-                        self.insFiniteStateMachine = 'STEP2'
-
-                    case 'STEP2':
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
-                        self.mem.address.prepare(SP)
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1)
-
-
-                        if self.mem.read.get() == 1 :
-                            self.insFiniteStateMachine = 'STEP3'
-
-                    case 'STEP3': 
-                        self.low = self.mem.read_data.get()
-                        SP = (((self.SPH&0xFF)<<8) | (self.SPL&0xFF))+2
-
-                        self.SPH = (SP>>8)&0x00FF
-                        self.SPL = SP&0x00FF
-                        self.pc  = ((self.high&0xFF)<<8) | (self.low&0xFF)
-                        self.insFiniteStateMachine = 'START'
+                retl = yield from self.readByte(self.SP)
+                self.SP += 1
+                reth = yield from self.readByte(self.SP)
+                self.SP += 1
+                
+                self.pc = (reth << 8) | retl
+                print(f'RET\t\t\t\t[{SPH_REG:04X}]={(self.SP>>8):02X} [{SPL_REG:04X}]={(self.SP & 0xFF):02X}')
+                
             case 'RETI':## return from interrupt 
-                raise Exception('not reviewed')
+                raise Exception('RETI not reviewed')
                 match self.insFiniteStateMachine:
                     
                     case 'START':
@@ -1426,7 +879,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                         self.insFiniteStateMachine = 'START'
 
             case 'CPSE':
-                raise Exception('not reviewed')
+                raise Exception('CPSE not reviewed')
                 self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
 
@@ -1440,58 +893,26 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.pc += 1
             case 'CP':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.res =  self.reg[self.Rd] - self.reg[self.Rr] 
+                # CP Rd, Rr -> 0001 01rd dddd rrrr
+                Rr, Rd = Rr5, Rd5
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                res =  vRd - vRr
 
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-                #C
-                if ((not Rd7) & Rr7 )|( Rr7 & R7)|(R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-                #V
-                V = ((Rd7 & (not Rr7) & (not R7)) | ((not Rd7) & Rr7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-                if ((not Rd3) & Rr3)|(Rr3 & (not R3))|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-                self.pc += 1
+                self.Z = 1 if (res & 0xFF) == 0 else 0
+                self.N = 1 if (res & 0x80) else 0
+                self.C = 1 if vRr > vRd else 0
+                self.H = 1 if ((vRr & 0x0F) > (vRd & 0x0F)) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (vRr >> 7) & 1
+                res_sign = ((res & 0xFF) >> 7) & 1
+                self.V = 1 if (rd_sign == 1 and rr_sign == 0 and res_sign == 0) or (rd_sign == 0 and rr_sign == 1 and res_sign == 1) else 0
+                self.S = self.N ^ self.V
+                
+                print('CP R{Rr}, R{Rd}\t\t{self.getFlagString()}')
+                
             case 'CPC':
-                raise Exception('not reviewed')
+                raise Exception('CPC not reviewed')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
                 self.res =  (self.reg[self.Rd] - self.reg[self.Rr] - (self.SREG & 0b1)) & 0xFF
@@ -1541,151 +962,69 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.SREG &= ~(1<<5)
 
                 self.pc += 1
+            
             case 'CPI':
-                raise Exception('not reviewed')
-                self.K = (self.ins&0xF)|(((self.ins>>8)&0xF)<<4)
-                self.Rd = (self.ins>>4)&0xF + 16
-                self.res = (self.reg[self.Rd]-self.K) & 0xFF
+                # CPI Rd, k -> 0011 KKKK dddd KKKK
+                # Compare with immediate
+                K, Rd = K8, Rd4 + 16
+                vRd = yield from self.readByte(Rd)
+                
+                res = (vRd - K) 
 
-
-                print("K= ", self.K , "Rd =", self.Rd ,"Res", self.res)
-
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|(R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-
-
-                #Z 
-                if (self.res == 0):
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-
-
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-
-
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-
-                if ((not Rd3) & K3)|(K3 & R3 )|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-
-                self.pc+=1
+                self.Z = 1 if (res == 0) else 0
+                self.N = (res & 0x80) >> 7
+                self.C = 1 if (res >= 0) else 0
+                self.H =  1 if ((vRd & 0x0F) - (K & 0x0F)) < 0 else 0
+                rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
+                rr_sign = (K >> 7) & 1      # Bit 7 of Rr
+                res_sign = (res >> 7) & 1     # Bit 7 of result
+                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
+                self.S = self.N ^ self.V
+                
+                print(f'CPI R{Rd}, {K:02X}\t\t{self.getFlagString()}')
+                
             case 'SBRC':
-                raise Exception('not reviewed')
-                b = self.ins&0b111
-                self.A = (self.ins>>4)&0b11111
-                if (self.reg[self.A]>>b)&1 == 0:
-                    next_ins = ins_to_str(self.flash[self.pc])
-                    if(next_ins == 'CALL' or next_ins == 'JMP' or next_ins == 'STS' or next_ins == 'LDS'):
-                        self.pc += 3 ##skip 2 word instruction
-                    else:
-                        self.pc += 2## skip 1 word instruction 
-                else:
-                    self.pc += 1
+                # SBRC Rd, b -> 1111 110r rrrr 0bbb
+                Rd, b = Rd5, b3
+                vRd = yield from self.readByte(Rd)
+
+                self.skip = ((vRd>>b)&1 == 0)
+                print(f'SBRC R{Rd}, {b}\t\tskip={self.skip}')
+
             case 'SBRS':
-                b = self.ins & 0b111        # bit position
-                R = (self.ins>>4) & 0b11111 # Register
+                # SBRS Rd, b -> 1111 111r rrrr 0bbb
+                b = b3      # bit position
+                Rd = Rd5    # Register
                 
-                v = yield from self.readByte(R)
-                cond = (((v >> b) & 1) == 1)
-                if cond:
-                    self.pc += 1
-                
-                print(f'SBRS R{R}, {b}\t\t{v:08b} & {1 << b:08b} = {cond}')
+                v = yield from self.readByte(Rd)
+                self.skip = bool((v >> b) & 1)
+                print(f'SBRS R{Rd}, {b}\t\t{v:08b} & {1 << b:08b} = {self.skip}')
                 
             case 'SBIC':
-                raise Exception('not reviewed')
-                b = self.ins&0b111
-                A = (self.ins>>3)&0b11111
-                ## implement I/O read to test if 0
-
-                self.pc += 1
+                # SBIC A, b -> 1001 1001 AAAA Abbb
+                A, b = A5, b3
+                vA = yield from self.readByte(A + 0x20)
+                self.skip = ((vA >> b) & 1) == 0
+                print('SBIC {A:02X}, {b}\t\tskip={self.skip}')
+                
             case 'SBIS':
-                raise Exception('not reviewed')
-                b = self.ins&0b111
-                A = (self.ins>>3)&0b11111
-                ## implement I/O read to test if 1
-
-                self.pc += 1
-            case 'BRBS':
-                raise Exception('not reviewed')
-                self.K =  (self.ins>>3)&0b1111111 
-                S =  self.ins&0b111
-
-                if (self.K & 0x40):
-                    self.K = self.K - 128
-                
-                if(self.SREG>>S)&1 == 1:
-                    self.pc += + self.K +1
-                else:
-                    self.pc += 1 
-            case 'BRBC':
-                raise Exception('not reviewed')
-                self.K =  (self.ins>>3)&0b1111111 
-                S =  self.ins&0b111
-
-                if (self.K & 0x40):
-                    self.K = self.K - 128
-
-                if(self.SREG>>S)&1 == 0:
-                    self.pc += + self.K + 1
-                else:
-                    self.pc += 1 
-            case 'SBI': ## implement write in io 
-                raise Exception('not reviewed')
-                b = (n3 & 0b111)
-                add = ((n >>3) & 0x1F) + 0x20
-
-                v = yield from self.readByte(add)
+                # SBIS A, b -> 1001 1011 AAAA Abbb
+                A, b = A5, b3
+                vA = yield from self.readByte(A + 0x20)
+                self.skip = bool((vA >> b) & 1) 
+                print('SBIS {A:02X}, {b}\t\tskip={self.skip}')
+                    
+            case 'SBI': 
+                # SBI A, b → 1001 1010 AAAAA bbb
+                # Set Bit in I/O register
+                A, b = A5, b3
+                v = yield from self.readByte(A + 0x20)
                 v = v | (1 << b)
-                yield from self.writeByte(add, v)
+                yield from self.writeByte(A + 0x20, v)
+                print('SBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}') 
                 
-                print(f'SBI R{Rd}, {K}\t\tR{Rd}={K:02X}')
-                
-                self.pc += 1
-            case 'CBI': ## implement write in io 
-                raise Exception('not reviewed')
-
-                self.pc += 1
-
             case 'LSL': 
-                raise Exception('not reviewed')
+                raise Exception('LSL not reviewed')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
                 self.res = (self.reg[self.Rd] + self.reg[self.Rr]) &0xFF
@@ -1734,46 +1073,27 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] =  self.res
 
                 self.pc += 1
+                
             case 'LSR':
-                raise Exception('not reviewed')
-                self.Rd =  (self.ins>>4)&0x1F
+                # LSR Rd -> 1001 010d dddd 0110
+                # Logical Shift Right
+                Rd = Rd5
+                vRd = yield from self.readByte(Rd)
+                bit_shifted_out = vRd & 0x01
                 
-                #C 
-                C = self.reg[self.Rd] & 0b1
-
-                if C == 1:
-                    self.SREG |= (1 << 0)
-                else:
-                    self.SREG &= ~(1 << 0)
-
-                self.res = (self.reg[self.Rd]>>1)&0xFF
+                res = (vRd >> 1) 
                 
-                #Z
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-
-                self.SREG &= ~(1<<2) # N is set to 0
-
-                #V
-                V = ((self.SREG&0b1)^0)
-                if V == 1 :
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
+                self.C = bit_shifted_out
+                self.Z = 1 if res == 0 else 0
+                self.N = 0
+                self.V = self.N ^ self.C
+                self.S = self.N ^ self.V
+                # self.H not affected                 
+                yield from self.writeByte(Rd, res)                
+                print(f'LSR R{Rd}\t\tR{Rd}={res:02X}')
                 
-                #S
-                if V == 1:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-
-                self.reg[self.Rd] = self.res
-                self.pc += 1
             case 'ROL':
-                raise Exception('not reviewed')
+                raise Exception('ROL IS A PSEUDO - INSTRUCTION')
                 self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
                 self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
                 self.res =  (self.reg[self.Rd] + self.reg[self.Rr] + (self.SREG & 0b1)) &0xFF
@@ -1821,65 +1141,62 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.reg[self.Rd] =  self.res
 
                 self.pc += 1
-            case 'ROR':
-                raise Exception('not reviewed')
-                self.Rd =  (self.ins>>4)&0x1F
-
-                #C 
-                C = self.reg[self.Rd] & 0b1
-
-                self.res = (self.reg[self.Rd]>>1 & 0xFF) | (self.SREG&0b1)<<7
-
-                if C == 1:
-                    self.SREG |= (1 << 0)
-                else:
-                    self.SREG &= ~(1 << 0)
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
-
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = R7^C
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                self.reg[self.Rd] = self.res & 0xFF
-
-                self.pc += 1
-            case 'ASR':
-                raise Exception('not reviewed')
-                self.Rd =  (self.ins>>4)&0x1F
-
-                #C 
-                C = self.reg[self.Rd] & 0b1
-                if C == 1:
-                    self.SREG |= (1 << 0)
-                else:
-                    self.SREG &= ~(1 << 0)
-
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
                 
-                self.res = (self.reg[self.Rd]>>1 & 0xFF) | (Rd7)<<7
+            case 'ROR':
+                # ROR Rd -> 1001 010d dddd 0111
+                # Rotate right
+                Rd =  Rd5
+                vRd = yield from self.readByte(Rd)
+                
+                C = vRd & 1
+                res = (vRd >> 1) | (self.C << 7)
 
+                self.Z = 0 if res == 0 else 1
+                self.C = C
+                self.N = res & 0x80
+                self.V = vRd ^ C
+                # self.H = undefined
+                yield from self.writeByte(Rd, res)
+                print(f'ROR R{Rd}\t\tR{Rd}={res:02X}')
+
+            case 'SUB':
+                # SUB Rd, Rr -> 0001 10rd dddd rrrr
+                Rr, Rd = Rr5, Rd5
+                
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd - vRr
+
+                self.Z = 1 if (res & 0xFF) == 0 else 0
+                self.N = (res >> 7) & 1
+                self.C = 1 if vRd < vRr else 0
+                self.H = 1 if (vRd & 0x0F) < (vRr & 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (vRr >> 7) & 1
+                res_sign = (res >> 7) & 1
+                self.V = 1 if (rd_sign != rr_sign) and (res_sign != rd_sign) else 0
+                self.S = self.N ^ self.V
+
+                yield from self.writeByte(Rd, res & 0xFF)
+                
+                print(f'SUB R{Rd}, R{Rr}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
+
+            case 'SUBI':
+                raise Exception('SUBI not reviewed')
+                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
+                self.Rd = 16 + ((self.ins >> 4) & 0xF)
+                self.res = self.reg[self.Rd] - self.K
+
+                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
+                K7= ((self.K&0xFF)>>7)&0b1
                 R7 = ((self.res&0xFF)>>7)&0b1
+
+                #C
+                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
+                    self.SREG |= (1<<0)
+                else:
+                    self.SREG &= ~(1<<0)
                 #Z 
                 if self.res == 0:
                     self.SREG |= (1<<1)
@@ -1891,7 +1208,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.SREG &= ~(1<<2)
                 #V
-                V = R7^C
+                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
 
                 if V == 1:
                     self.SREG |= (1<<3)
@@ -1903,74 +1220,214 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     self.SREG &= ~(1<<4)
 
-                self.reg[self.Rd] = self.res & 0xFF
+                #H
+                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
+                K3= ((self.K&0xFF)>>3)&0b1
+                R3 = ((self.res&0xFF)>>3)&0b1
+
+                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
+                    self.SREG |= (1<<5)
+                else:
+                    self.SREG &= ~(1<<5)
+
+
+
+                self.reg[self.Rd] =  self.res & 0xFF
 
                 self.pc += 1
+            case 'SBC':
+                raise Exception('SBC not reviewed')
+                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
+                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
+                self.res =  self.reg[self.Rd] - self.reg[self.Rr] - (self.SREG & 0b1)
+
+                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
+                Rr7= ((self.reg[self.Rr]&0xFF)>>7)&0b1
+                R7 = ((self.res&0xFF)>>7)&0b1
+
+                #C
+                if ((not Rd7) & Rr7 )|( Rr7 & R7)|( R7 & (not Rd7)):
+                    self.SREG |= (1<<0)
+                else:
+                    self.SREG &= ~(1<<0)
+                #Z 
+                current_Z = (self.SREG >> 1) & 0b1
+                if (self.res&0xFF == 0) and current_Z == 1:
+                    self.SREG |= (1<<1)
+                else:
+                    self.SREG &= ~(1<<1)
+                #N
+                if R7 == 1:
+                    self.SREG |= (1<<2)
+                else:
+                    self.SREG &= ~(1<<2)
+                #V
+                V = ((Rd7 & (not Rr7) & (not R7)) | ((not Rd7) & Rr7 & R7))&0b1
+
+                if V == 1:
+                    self.SREG |= (1<<3)
+                else:
+                    self.SREG &= ~(1<<3)
+                #S
+                if V^R7:
+                    self.SREG |= (1<<4)
+                else:
+                    self.SREG &= ~(1<<4)
+
+                #H
+                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
+                Rr3= ((self.reg[self.Rr]&0xFF)>>3)&0b1
+                R3 = ((self.res&0xFF)>>3)&0b1
+
+                if ((not Rd3) & Rr3)|(Rr3 & R3)|(R3 & (not Rd3)):
+                    self.SREG |= (1<<5)
+                else:
+                    self.SREG &= ~(1<<5)
+
+                self.reg[self.Rd] =  self.res & 0xFF
+                self.pc += 1
+                
+            case 'SBCI':
+                raise Exception('SBCI not reviewed')
+                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
+                self.Rd = ((self.ins>>4) & 0xF) + 16
+                self.res =  self.reg[self.Rd] - self.K - (self.SREG & 0b1)
+
+                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
+                K7= ((self.K&0xFF)>>7)&0b1
+                R7 = ((self.res&0xFF)>>7)&0b1
+
+                #C
+                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
+                    self.SREG |= (1<<0)
+                else:
+                    self.SREG &= ~(1<<0)
+                #Z 
+                current_Z = (self.SREG >> 1) & 0b1
+                if (self.res&0xFF == 0) and current_Z == 1:
+                    self.SREG |= (1<<1)
+                else:
+                    self.SREG &= ~(1<<1)
+                #N
+                if R7 == 1:
+                    self.SREG |= (1<<2)
+                else:
+                    self.SREG &= ~(1<<2)
+                #V
+                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
+
+                if V == 1:
+                    self.SREG |= (1<<3)
+                else:
+                    self.SREG &= ~(1<<3)
+                #S
+                if V^R7:
+                    self.SREG |= (1<<4)
+                else:
+                    self.SREG &= ~(1<<4)
+
+                #H
+                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
+                K3= ((self.K&0xFF)>>3)&0b1
+                R3 = ((self.res&0xFF)>>3)&0b1
+
+                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
+                    self.SREG |= (1<<5)
+                else:
+                    self.SREG &= ~(1<<5)
+
+                self.reg[self.Rd] =  self.res & 0xFF
+                self.pc += 1
+                
+            case 'SBIW':
+                # SBIW Rd, K -> 1001 0111 KKdd KKKK
+                K = K6
+                Rd = 24 + (((self.ins>>4)&0b11) * 2)
+                vRh = yield from self.readByte(Rd+1)
+                vRl = yield from self.readByte(Rd)
+                
+                val = ((vRh << 8) | vRl)
+                res = val - K
+
+                self.Z = 1 if (res & 0xFFFF) == 0 else 0
+                self.C = 1 if K > val else 0
+                self.N = 1 if (res & 0x8000) else 0
+                val_sign = (val >> 15) & 1
+                res_sign = (res >> 15) & 1
+                self.V = 1 if (val_sign == 0 and res_sign == 1) else 0
+                self.S = self.N ^ self.V
+
+                yield from self.writeByte(Rd + 1 , (res>>8) & 0xFF)
+                yield from self.writeByte(Rd, res & 0xFF)
+                
+                print(f'SBIW R{Rd}, {K:04X}\t\tR{Rd+1}={((res>>8) & 0xFF):02X} R{Rd}={(res & 0xFF):02X} {self.getFlagString()}')
+                
             case 'SWAP':
-                raise Exception('not reviewed')
+                raise Exception('SWAP not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.reg[self.Rd]= ((self.reg[self.Rd]&0xF)<<4) | ((self.reg[self.Rd]&0xF0)>>4)
 
                 self.pc += 1
+                
             case 'BSET':
-                raise Exception('not reviewed')
-                s = (self.ins>>4)&0b111
-                self.SREG |=(1<<s) 
-
-                self.pc += 1
+                # BSET s -> 1001 0100 0sss 1000
+                s = s3
+                self.setSREGField(s, 1)
+                SREG, sSREG = self.getSREG()
+                print(f'BSET {s}\t\t{sSREG[s]}=0')
+                
             case 'BCLR':
-                raise Exception('not reviewed')
-                s = (self.ins>>4)&0b111
-                self.SREG &= ~(1<<s) 
-
-                self.pc += 1
+                # BCLR s -> 1001 0100 1sss 1000
+                s = s3
+                self.setSREGField(s, 0)
+                SREG, sSREG = self.getSREG()
+                print(f'BCLR {s}\t\t{sSREG[s]}=0')
+                
             case 'BST':
-                raise Exception('not reviewed')
-                b = self.ins&0b111
-                self.Rd = (self.ins>>4)&0x1F
-                bit = (self.reg[self.Rd]>>b)&1
-
-                if bit:
-                    self.SREG |= (1<<6)
-                else:
-                    self.SREG &= ~(1<<6)
+                # BST Rr, b -> 1111 101r rrrr 0bbb
+                # Bit store from T flag
+                Rr, b = Rd5, b3
+                vRr = yield from self.readByte(Rr)
+                self.T = (vRr >> b3) & 1
+                print(f'BST R{Rr}, {b}\t\tT={(vRr >> b3) & 1}')
  
-                self.pc += 1
             case 'BLD':
-                raise Exception('not reviewed')
-                b = self.ins&0b111
-                self.Rd = (self.ins>>4)&0x1F
-                self.reg[self.Rd] &= ~(0b1<<b)
-                self.reg[self.Rd] |= ((self.SREG>>6)&1)<<b
-
-                self.pc += 1
-
+                # BLD Rd, b -> 1111 100d dddd 0bbb
+                # Bit load from T Flag
+                Rd, b = Rd5, b3
+                self.T
+                vRd = yield from self.readByte(Rd)
+                vRd = (self.T << b3) | (vRd & ~(1 << b3))
+                yield from self.writeByte(Rd, vRd)
+                print(f'BLD R{Rd}, {b}\t\tR{Rd}={vRd:02X}')
 
             case 'MOV':
-                raise Exception('not reviewed')
-                self.Rr = ((self.ins>>9)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>8)&0b1)<<4|((self.ins>>4) & 0xF)
-                self.reg[self.Rd] =  self.reg[self.Rr]
-
-                self.pc += 1
+                # MOV Rd, Rr -> 0010 11rd dddd rrrr
+                Rr, Rd = Rr5, Rd5 
+                vRr = yield from self.readByte(Rr)
+                yield from self.writeByte(Rd, vRr)
+                print(f'MOV R{Rd}, R{Rr}\t\tR{Rd}={vRr:02X}')
+                
             case 'MOVW':
-                raise Exception('not reviewed')
-                self.Rr = (self.ins & 0xF) << 1
-                self.Rd = ((self.ins>>4) & 0xF) << 1
-
-                self.reg[self.Rd+1] = self.reg[self.Rr+1]
-                self.reg[self.Rd] =  self.reg[self.Rr]
-
-                self.pc += 1
+                # MOVW Rd, Rr -> 0000 0001 dddd rrrr
+                Rr, Rd = Rr5, Rd5
+                vRh = yield from self.readByte(Rr+1)
+                vRl = yield from self.readByte(Rr)
+                    
+                yield from self.writeByte(Rd+1, vRh)
+                yield from self.writeByte(Rd, vRl)
+                print(f'MOVW R{Rd}, R{Rr}\t\tR{Rd+1}={vRh:02X} R{Rd}={vRl:02X}')
+                
             case 'LDI':
-                Rd = n2+16                      
-                K = (n1<<4) | n3
+                # LDI Rd, K -> 1110 KKKK dddd KKKK
+                Rd = Rd4+16                      
+                K = K8
                 yield from self.writeByte(Rd, K)
                 
-                print(f'LDI R{Rd}, {K}\t\tR{Rd}={K:02X}')
+                print(f'LDI R{Rd}, {K:02X}\t\tR{Rd}={K:02X}')
                 
             case 'LDX': #X
-                raise Exception('not reviewed')
+                raise Exception('LDX not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A  = (self.reg[27]<<8)|(self.reg[26]&0xFF) #X address
 
@@ -1993,7 +1450,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDX+': #X+
-                raise Exception('not reviewed')
+                raise Exception('LDX+ not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = self.reg[26]|(self.reg[27]<<8)
 
@@ -2020,7 +1477,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LD-X': #-X
-                raise Exception('not reviewed')
+                raise Exception('LD-X not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = (self.reg[27]<<8)|(self.reg[26]&0xFF)
 
@@ -2048,7 +1505,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDY': #Y
-                raise Exception('not reviewed')
+                raise Exception('LDY not reviewed')
                 self.Rd = (self.ins>>4)&0b11111
                 self.A = self.reg[28]|(self.reg[29]<<8)
 
@@ -2068,7 +1525,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDY+': #Y+
-                raise Exception('not reviewed')
+                raise Exception('LDY+ not reviewed')
                 self.Rd = (self.ins>>4)&0b11111
                 self.A = (self.reg[28]&0xFF)|(self.reg[29]<<8)
 
@@ -2096,7 +1553,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LD-Y': #-Y
-                raise Exception('not reviewed')
+                raise Exception('LD-Y not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = (self.reg[29]<<8)|self.reg[28]
 
@@ -2123,7 +1580,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDDY':#Y+q
-                raise Exception('not reviewed')
+                raise Exception('LDDY not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.q = (self.ins&0b111)|(((self.ins>>10)&0b11)<<3)|(((self.ins>>13)&0b1)<<5)
                 self.A = (((self.reg[28]&0xFF)|((self.reg[29]&0xFF)<<8))+self.q) & 0xFFFF # Y address
@@ -2148,7 +1605,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDZ':#Z
-                raise Exception('not reviewed')
+                raise Exception('LDZ not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = (self.reg[30]&0xFF)|(self.reg[31]<<8) # A but it is a Z memory address
 
@@ -2168,7 +1625,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDZ+':#Z+
-                raise Exception('not reviewed')
+                raise Exception('LDZ+ not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
@@ -2193,7 +1650,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LD-Z':#–Z
-                raise Exception('not reviewed')
+                raise Exception('LD-Z not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.A = (self.reg[30]&0xFF)|(self.reg[31]<<8)
 
@@ -2220,7 +1677,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1
                     self.databyteNb = 0
             case 'LDDZ':#Z+q  verify this implementation
-                raise Exception('not reviewed')
+                raise Exception('LDDZ not reviewed')
                 self.Rd = (self.ins>>4)&0b11111
                 self.q = (self.ins&0b111)|(((self.ins>>10)&0b11)<<3)|(((self.ins>>13)&0b1)<<5)
                 self.A = ((self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8))+self.q # Y address
@@ -2246,8 +1703,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.databyteNb = 0
             case 'LDS':
                 # Load direct from sram
-                Rd = (self.ins>>4) & 0x1F
-                add = yield from self.readInsWord()
+                Rd = Rd5
+                # add is loaded in the skip logic
 
                 v = yield from self.readByte(add)
                 yield from self.writeByte(Rd, v)
@@ -2255,7 +1712,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print(f'LDS R{Rd}, {add:04X}\tR{Rd}={v:02X}')
                 
             case 'STX':#X
-                raise Exception('not reviewed')
+                raise Exception('STX not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = (self.reg[26]&0xFF)|((self.reg[27]&0xFF)<<8) #X adress
 
@@ -2279,7 +1736,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STX+':#X+
-                raise Exception('not reviewed')
+                raise Exception('STX+ not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[26]|(self.reg[27]<<8) #X addres 
 
@@ -2307,7 +1764,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'ST-X':#–X
-                raise Exception('not reviewed')
+                raise Exception('ST-X not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[26]|(self.reg[27]<<8) #X address
 
@@ -2336,7 +1793,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STY':#Y
-                raise Exception('not reviewed')
+                raise Exception('STY not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2361,7 +1818,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STY+':#Y+
-                raise Exception('not reviewed')
+                raise Exception('STY+ not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2390,7 +1847,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'ST-Y':#–Y
-                raise Exception('not reviewed')
+                raise Exception('ST-Y not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[28]|(self.reg[29]<<8) #Y address
 
@@ -2419,7 +1876,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STDY':#Y+q or STY
-                raise Exception('not reviewed')
+                raise Exception('STDY not reviewed')
                 self.Rd = (self.ins>>4)&0x1F
                 self.q = (self.ins&0b111)|(((self.ins>>10)&0b11)<<3)|(((self.ins>>13)&0b1)<<5)
                 self.A = ((self.reg[28]&0xFF)|(self.reg[29]<<8))+self.q # Y address
@@ -2446,7 +1903,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STZ':#Z
-                raise Exception('not reviewed')
+                raise Exception('STZ not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8) # Z
 
@@ -2471,7 +1928,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STZ+':#Z+
-                raise Exception('not reviewed')
+                raise Exception('STZ+ not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.A = self.reg[30]|(self.reg[31]<<8)
 
@@ -2500,7 +1957,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'ST-Z':#–Z
-                raise Exception('not reviewed')
+                raise Exception('ST-Z not reviewed')
                 self.Rr = (self.ins>>4)&0b11111
                 Z = self.reg[30]&0xFF|(self.reg[31]<<8) # Z address
 
@@ -2529,7 +1986,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.pc += 1 
                     self.databyteNb = 0
             case 'STDZ':#Z+q or STZ
-                raise Exception('not reviewed')
+                raise Exception('STDZ not reviewed')
                 self.Rr = (self.ins>>4)&0x1F
                 self.q = (self.ins&0b111) | (((self.ins>>10)&0b11)<<3) | (((self.ins>>13)&0b11)<<3)
                 self.A = self.reg[30]|(self.reg[31]<<8) #named A but it is a Z address
@@ -2556,17 +2013,15 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.databyteNb = 0
             
             case 'STS':
-                
-                Rr = (self.ins>>4) & 0x1F
-                add = yield from self.readInsWord()
-                
+                # STS k, Rr -> 1001 001d dddd 0000 kkkk kkkk kkkk kkkk
+                Rr = Rd5
+                # add is loaded in the skip logic
                 v = yield from self.readByte(Rr)
                 yield from self.writeByte(add, v)
-                
                 print(f'STS {add:04X}, R{Rr}\t[{add:04X}]={v:02X}')
 
             case 'LPM': #R0 implied
-                raise Exception('not reviewed')
+                raise Exception('LPM not reviewed')
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
                 if(self.A&0b1 == 1 ):##high byte
@@ -2576,7 +2031,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1 
             case 'LPMZ': #Z
-                raise Exception('not reviewed')
+                raise Exception('LPMZ not reviewed')
                 self.Rd = ((self.ins>>4)&0x1F)
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
@@ -2589,7 +2044,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc += 1
             case 'LPMZ+': #Z+
-                raise Exception('not reviewed')
+                raise Exception('LPMZ+ not reviewed')
                 self.Rd = ((self.ins>>4)&0x1F) 
                 self.A = (self.reg[30]&0xFF)|((self.reg[31]&0xFF)<<8)
 
@@ -2606,7 +2061,7 @@ class SingleCycleATmega328P(py4hw.Logic):
 
                 self.pc+=1
             case 'SPM':
-                raise Exception('not reviewed')
+                raise Exception('SPM not reviewed')
                 # must use SPMCSR
                 SELFPRGEN = self.SPMCSR & 0b1
                 PGERS = (self.SPMCSR >> 1) & 0b1
@@ -2662,136 +2117,81 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.pc += 1
 
             case 'IN':
-                raise Exception('not reviewed')
-                self.Rd = (self.ins>>4)&0b11111
-                self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
-
-                #verify if the address is valid
-                #Minimum Address: 0x00
-                #Maximum Address: 0x3F
-                if (self.A >= 0x00) and (self.A <=0x3F):
-                    #internal addresses
-                    if (self.A == self.SREG_addr_IO):
-                        self.reg[self.Rd] = self.SREG #status register
-                        print("Register:SREG")
-                        self.pc += 1
-                    elif (self.A == self.MCUSR_addr_IO):
-                        self.reg[self.Rd] = self.MCUSR
-                        print("Register:MCUSR = {val}".format(val = self.MCUSR))  
-                        self.pc += 1 
-        
-                    if self.databyteNb == 0 :
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1) 
-
-                        self.mem.address.prepare(self.A)
-                        self.databyteNb = 1
-                    elif self.mem.resp.get() == 1:
-                        self.reg[self.Rd] = self.mem.read_data.get()
-
-                        self.pc += 1
-                        self.databyteNb = 0
+                # IN Rd, A -> 1011 0AAd dddd AAAA
+                Rd = Rd5
+                add = A6 + 0x20
+                
+                if (add == SPH_REG):
+                    v = self.SP >> 8
+                elif (add == SPL_REG):
+                    v = self.SP & 0xF
+                elif (add == SREG_REG):
+                    v, _ = self.getSREG()
                 else:
-                    # increment by one if the address is invalid    
-                    self.pc+=1
+                    v = yield from self.readByte(add)
+                
+                yield from self.writeByte(Rd, v)
+                print(f'IN R{Rd}, {A6:02X}\t\tR{Rd}={v:02X}')
+                
             case 'OUT':
-                raise Exception('not reviewed')
-                self.Rr = (self.ins>>4)&0b11111
-                self.A = ((self.ins)&0xF) | ((((self.ins)>>9)&0b11)<<4) #don't know what is the port
-
-                #verify if the address is valid
-                #Minimum Address: 0x00
-                #Maximum Address: 0x3F
-                if (self.A >= 0x00) and (self.A <=0x3F):
-                    #internal addresses
-                    if (self.A == self.SREG_addr_IO):
-                        self.SREG = self.reg[self.Rr] #status register
-                        print("Register:SREG")
-                        self.pc += 1 
-                    elif (self.A == self.MCUSR_addr_IO):
-                        self.MCUSR = self.reg[self.Rr]
-                        print("Register:MCUSR = {val}".format(val = self.MCUSR)) 
-                        self.pc += 1 
-
-                    if self.databyteNb == 0 :
-                        self.mem.write.prepare(0)
-                        self.mem.read.prepare(1) 
-
-                        self.mem.instype.prepare(0)
-
-                        self.mem.address.prepare(self.A)
-                        self.databyteNb = 1
-                    elif self.mem.resp.get() == 1:
-                        self.reg[self.Rd] = self.mem.read_data.get()
-
-                        self.mem.instype.prepare(0)
-
-                        self.pc += 1
-                        self.databyteNb = 0
+                # -> 1011 1AAr rrrr AAAA
+                Rr = Rd5
+                add = A6 + 0x20
+                
+                v = yield from self.readByte(Rr)
+                
+                if (add == SPH_REG):
+                    self.SP = (v << 8) | self.SP & 0x00FF
+                elif (add == SPL_REG):
+                    self.SP = v | self.SP & 0xFF00
+                elif (add == SREG_REG):
+                    self.I = (v >> 7) & 1
+                    self.T = (v >> 6) & 1
+                    self.H = (v >> 5) & 1
+                    self.S = (v >> 4) & 1
+                    self.V = (v >> 3) & 1
+                    self.N = (v >> 2) & 1
+                    self.Z = (v >> 1) & 1
+                    self.C = (v & 1)
                 else:
-                    # increment by one if the address is invalid
-                    self.pc+=1
+                    yield from self.writeByte(add, v)
+                
+                print(f'OUT {add:02X}, R{Rr}\t\t[{add:02X}]={v:02X}')
+
             case 'PUSH':
-                raise Exception('not reviewed')
-                self.Rr = (self.ins>>4)&0x1F
-                self.A = (self.SPH<<8) | (self.SPL&0xFF)
-
-                if self.databyteNb == 0:
-                    self.mem.write.prepare(1)
-                    self.mem.read.prepare(0)
-
-                    self.mem.address.prepare(self.A)
-                    self.mem.write_data.prepare(self.reg[self.Rr])
-
-                    self.databyteNb = 1
-
-                else:
-                    self.A -= 1 ##decrementing SP
-                    self.SPL = self.A&0xFF 
-                    self.SPH = (self.A>>8)&0xFF
-
-                    self.mem.write.prepare(0)
-                    self.mem.write.prepare(0)
-
-                    self.pc += 1 
-                    self.databyteNb = 0            
+                # PUSH Rr → 1001 001d dddd 1111
+                Rr = Rd4
+                self.SP -= 1
+                vRr = yield from self.readByte(Rr)
+                yield from self.writeByte(self.SP, vRr)
+                print(f'PUSH R{Rr}\t\t[self.SP:04X]={vRr:02X}')                
+            
             case 'POP':
-                raise Exception('not reviewed')
-                self.Rd = (self.ins>>4)&0x1F
-                self.A = ((self.SPH&0xFF)<<8) | (self.SPL&0xFF)
+                # POP Rd → 1001 000d dddd 1111
+                Rd = Rd4
+                vRd = yield from self.readByte(self.SP)
+                self.SP += 1
+                yield from self.writeByte(Rd, vRd)
+                print(f'POP R{Rd}\t\tR{Rd}={vRd:02X}')                
 
-                if self.databyteNb == 0 :
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(1) 
-
-                    self.A = (self.A + 1 ) & 0xFFFF ##incrementing SP
-
-                    self.SPL = self.A&0xFF 
-                    self.SPH = (self.A>>8)&0xFF
-
-                    self.mem.address.prepare(self.A)
-                    self.databyteNb = 1
-
-                elif self.mem.resp.get() == 1:
-                    self.reg[self.Rd] = self.mem.read_data.get()
-
-                    self.mem.write.prepare(0)
-                    self.mem.read.prepare(0)
-
-                    self.pc += 1
-                    self.databyteNb = 0
             case 'NOP':
-                self.pc += 1 
+                # NOP -> 0000 0000 0000 0000
+                print('NOP')
+                
             case 'SLEEP':
                 ##activation of SLEEP MODE
+                raise Exception('SLEEP not validated')
                 self.pc += 1
             case 'WDR' :
                 ## Watchdog Reset
+                raise Exception('WDR not validated')
                 self.pc +=1
             case 'BREAK' : 
                 ## Sould enter debug mode
+                raise Exception('BREAK not validated')
                 self.pc += 1
             case 'invalid': #basicaly a nop
+                raise Exception(f'invalid opocode: {self.ins:04X}')
                 self.pc += 1
                 
         yield
