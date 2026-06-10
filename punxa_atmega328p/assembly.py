@@ -122,7 +122,7 @@ def parts_to_ins(parts):
         k = get_int(parts[2])
         s = get_int(parts[1])
         assert (s >= 0) and (s <= 7)
-        p1 = 0b0100  | (k >> 5)
+        p1 = 0b0100  | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | s
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -133,7 +133,7 @@ def parts_to_ins(parts):
         k = get_int(parts[2])
         s = get_int(parts[1])
         assert (s >= 0) and (s <= 7)
-        p1 = 0b0000  | (k >> 5)
+        p1 = 0b0000  | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | s
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -142,7 +142,7 @@ def parts_to_ins(parts):
         # BRCC k -> 1111 01kk kkkk k000
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = (1 << 2) | (k >> 5)
+        p1 = (1 << 2) | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -151,7 +151,7 @@ def parts_to_ins(parts):
         # BRCS k -> 1111 00kk kkkk k000
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -164,7 +164,7 @@ def parts_to_ins(parts):
         # BREQ k -> 1111 00kk kkkk k001
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | 1
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -173,7 +173,7 @@ def parts_to_ins(parts):
         # BRGE k -> 1111 01kk kkkk k100
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0100 | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -182,7 +182,7 @@ def parts_to_ins(parts):
         # BRHC k -> 1111 01kk kkkk k101
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0100 | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b101
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -191,7 +191,7 @@ def parts_to_ins(parts):
         # BRHS -> 1111 00kk kkkk k101
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0000 | (k >> 5)
+        p1 = 0b0000 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b101
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -200,7 +200,7 @@ def parts_to_ins(parts):
         # BRID k -> 1111 01kk kkkk k111
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0100 | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b111
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -209,7 +209,7 @@ def parts_to_ins(parts):
         # BRIE k -> 1111 00kk kkkk k111 
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0000 | (k >> 5)
+        p1 = 0b0000 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b111
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -218,7 +218,7 @@ def parts_to_ins(parts):
         # BRLO k -> 1111 00kk kkkk k000
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | 0b000
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -227,7 +227,7 @@ def parts_to_ins(parts):
         # BRLT k -> 1111 00kk kkkk k100
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | 0b100
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -236,7 +236,7 @@ def parts_to_ins(parts):
         # BRMI k -> 1111 00kk kkkk k010
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | 0b010
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -246,9 +246,9 @@ def parts_to_ins(parts):
         # psuedo instruction (BRBC 1, k)
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = (1 << 2) | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
-        p3 = (k & 1) << 3 | 1
+        p3 = ((k & 1) << 3) | 1
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
     elif (op == 'BRPL'):
@@ -256,7 +256,7 @@ def parts_to_ins(parts):
         # pseudo instruction (BRBC 2, k)
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = (1 << 2) | (k >> 5)
+        p1 = (1 << 2) | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b010
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -265,7 +265,7 @@ def parts_to_ins(parts):
         # BRTC k → 1111 01kk kkkk k110
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0100 | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b110
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -274,7 +274,7 @@ def parts_to_ins(parts):
         # BRTS k -> 1111 00kk kkkk k110
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0000 | (k >> 5)
+        p1 = 0b0000 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b110
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -283,7 +283,7 @@ def parts_to_ins(parts):
         # BRSH k -> 1111 01kk kkkk k000
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = 0b0100 | (k >> 5)
+        p1 = 0b0100 | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b000
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -293,7 +293,7 @@ def parts_to_ins(parts):
         # pseudo instruction (BRBC 3, k)
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = (1 << 2) | (k >> 5)
+        p1 = (1 << 2) | ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = (k & 1) << 3 | 0b011
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -302,7 +302,7 @@ def parts_to_ins(parts):
         # BRVS k -> 1111 00kk kkkk k011
         p0 = 0b1111
         k = get_int(parts[1])
-        p1 = k >> 5
+        p1 = ((k >> 5) & 0b11)
         p2 = (k >> 1) & 0xF
         p3 = ((k & 1) << 3) | 0b011
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -428,6 +428,7 @@ def parts_to_ins(parts):
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
     elif (op == 'CPSE'):
+        # CPSE Rd, Rr -> 0001 00rd dddd rrrr
         p0 = 0b0001
         Rd =  reg_to_index(parts[1]) 
         Rr =  reg_to_index(parts[1]) 
@@ -539,12 +540,13 @@ def parts_to_ins(parts):
     
     elif (op == 'LSL'):
         # LSL Rd -> 1001 010d dddd 0011
-        p0 = 0b1001
-        r = reg_to_index(parts[1])
-        p1 = 0b0100 | (r >> 4)
-        p2 = r & 0xF
-        p3 = 0b0011
-        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3)]
+        # Pseudo instruction (ADD Rd, Rd)
+        p0 = 0b0000
+        Rd = reg_to_index(parts[1])
+        p1 = 0b1100 | ((Rd >> 4) << 1) | (Rd>>4)
+        p2 = Rd & 0xF
+        p3 = Rd & 0xF
+        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
     elif (op == 'LSR'):
         # LSR Rd -> 1001 010d dddd 0110
@@ -902,6 +904,7 @@ def is_relative_jump(asm):
     if (parts[0] == 'BRCS'): return True
     if (parts[0] == 'BREQ'): return True
     if (parts[0] == 'BRGE'): return True
+    if (parts[0] == 'BRLT'): return True
     if (parts[0] == 'BRNE'): return True
     return False
 
@@ -919,6 +922,7 @@ def is_valid_relative(asm, delta):
     if (parts[0] == 'BRCS'): return valid7
     if (parts[0] == 'BREQ'): return valid7
     if (parts[0] == 'BRGE'): return valid7
+    if (parts[0] == 'BRLT'): return valid7
     if (parts[0] == 'BRNE'): return valid7
     
     return False
@@ -1067,8 +1071,9 @@ def assemble_program(program, debug=False):
                 
         line = expand_macros(line)
         
-        print(f'0x{off:02X} -', line)
         words = assemble(line)   
+        print(f'0x{off:02X} -', line,  [f'{w:04X}' for w in words])
+        
         ret.extend(words)
         off += len(words)
         
