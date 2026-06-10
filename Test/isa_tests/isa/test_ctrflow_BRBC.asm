@@ -4,13 +4,14 @@
 
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
 reset:
-    ldi r16, 0x03
+    ldi r16, high(stack_start)
     out SPH, r16
-    ldi r16, 0xFF
+    ldi r16, low(stack_start)
     out SPL, r16
 
     ldi r16, 1

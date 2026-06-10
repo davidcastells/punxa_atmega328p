@@ -3,14 +3,15 @@
 ; ============================================================
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
 reset:
     ; Initialize stack pointer
-    ldi r16, 0x08
+    ldi r16, high(stack_start)
     out SPH, r16
-    ldi r16, 0xFF
+    ldi r16, low(stack_start)
     out SPL, r16
 
     ; Initialize state
@@ -57,7 +58,7 @@ test3:
 ; ============================================================
 test4:
     ldi r17, 0x00
-    ori r17, (1<<4)         ; Set bit 4 (R17 is now 0x10)
+    ori r17, 0x10         ; Set bit 4 (R17 is now 0x10)
     sbrs r17, 4             ; Bit 4 is 1, so skip
     rjmp fail
     rcall inc_case

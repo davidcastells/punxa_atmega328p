@@ -77,10 +77,14 @@ def runTest(file):
     
     hw, cpu, ins_mem, mem , symbols = prepareTest(file)
     
-    
+    step_limit = 1000
+    step_count = 0
     
     while (cpu.pc != symbols['end']):
         step()
+        step_count += 1 
+        if (step_count > step_limit):
+            raise Exception('Step count > limit')
     
     test_case = mem.readWord(symbols['test_case']-0x100)
     final_result = mem.readWord(symbols['final_result']-0x100)
