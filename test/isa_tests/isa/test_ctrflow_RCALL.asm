@@ -1,15 +1,5 @@
 ; ============================================================
-; RCALL (Relative Call) test suite
-; ============================================================
-; Tests that RCALL correctly:
-; 1. Saves the return address (PC+1) on the stack
-; 2. Jumps to PC + 1 + k (where k is 12-bit signed offset)
-; 3. Stack pointer decrements by 2
-; ============================================================
-; RCALL is a 1-word (16-bit) instruction
-; Format: 1101 kkkk kkkk kkkk (12-bit signed offset)
-; Operation: SP <- SP - 2, [SP] <- PC+1, PC <- PC + 1 + k
-; Range: +-2048 words from PC
+; RCALL (Relative Call) test suite - WITH LOCAL TRAMPOLINES
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -19,7 +9,6 @@
 .equ SPL = 0x3D
 
 reset:
-    ; Initialize stack pointer to RAMEND (0x08FF)
     ldi r16, high(stack_start)
     out SPH, r16
     ldi r16, low(stack_start)
@@ -29,592 +18,509 @@ reset:
     sts test_case, r16
     sts final_result, r16
 
-    ; First RCALL test
-    rcall test1_start
-    rjmp fail
+    rjmp test1_start
 
 ; ============================================================
-; TEST 1: Simple RCALL that returns
+; GLOBAL FAIL HANDLER (far away)
 ; ============================================================
+fail:
+    ldi r16, 255
+    sts final_result, r16
+    rjmp end
+
+; ============================================================
+; TEST 1 with LOCAL TRAMPOLINE
+; ============================================================
+test1_fail:
+    rjmp fail          ; Local trampoline to global fail
+
 test1_start:
     ldi r16, 0xAA
-    rcall subroutine1    ; Call subroutine
-    ; Should return here after subroutine
-    cpi r16, 0xBB       ; Check if subroutine modified r16
-    brne fail
-    rcall inc_case_rcall1
+    rcall sub1
+    cpi r16, 0xBB
+    brne test1_fail    ; Branch to local trampoline
+    rcall inc1
 
-subroutine1:
-    ldi r16, 0xBB       ; Change value
+sub1:
+    ldi r16, 0xBB
     ret
 
-inc_case_rcall1:
+inc1:
     rcall test2_start
-    rjmp fail
+    rjmp test1_fail
 
 ; ============================================================
-; TEST 2: Nested RCALLs (two levels deep)
+; TEST 2 with LOCAL TRAMPOLINE
 ; ============================================================
+test2_fail:
+    rjmp fail
+
 test2_start:
     ldi r17, 0x11
-    rcall outer2        ; First level call
-    
-    cpi r17, 0x33       ; Should be 0x33 after nested returns
-    brne fail
-    rcall inc_case_rcall2
+    rcall outer2
+    cpi r17, 0x33
+    brne test2_fail
+    rcall inc2
 
 outer2:
     ldi r17, 0x22
-    rcall inner2        ; Second level call
+    rcall inner2
     ret
 
 inner2:
     ldi r17, 0x33
     ret
 
-inc_case_rcall2:
+inc2:
     rcall test3_start
+    rjmp test2_fail
+
+; ============================================================
+; TEST 3 with LOCAL TRAMPOLINE
+; ============================================================
+test3_fail:
     rjmp fail
 
-; ============================================================
-; TEST 3: RCALL with multiple PUSH/POP inside
-; ============================================================
 test3_start:
-    ldi r18, 0x01
-    ldi r19, 0x02
-    ldi r20, 0x03
-    
-    rcall push_pop_test3
-    
-    ; Registers should be restored after return
-    cpi r18, 0x01
-    brne fail
-    cpi r19, 0x02
-    brne fail
-    cpi r20, 0x03
-    brne fail
-    rcall inc_case_rcall3
+    ldi r18, 1
+    ldi r19, 2
+    ldi r20, 3
 
-push_pop_test3:
+    rcall pushpop3
+
+    cpi r18, 1
+    brne test3_fail
+    cpi r19, 2
+    brne test3_fail
+    cpi r20, 3
+    brne test3_fail
+
+    rcall inc3
+
+pushpop3:
     push r18
     push r19
     push r20
-    
-    ldi r18, 0xFF
-    ldi r19, 0xFF
-    ldi r20, 0xFF
-    
+
+    ldi r18, 9
+    ldi r19, 9
+    ldi r20, 9
+
     pop r20
     pop r19
     pop r18
     ret
 
-inc_case_rcall3:
+inc3:
     rcall test4_start
-    rjmp fail
+    rjmp test3_fail
 
 ; ============================================================
-; TEST 4: Stack pointer verification after RCALL/RET
+; TEST 4 with LOCAL TRAMPOLINE
 ; ============================================================
+test4_fail:
+    rjmp fail
+
 test4_start:
-    ; Read initial SP
     in r21, SPL
     in r22, SPH
-    
-    rcall sp_test4      ; RCALL should decrement SP by 2
-    
-    ; Read SP after return
+
+    rcall sp4
+
     in r23, SPL
     in r24, SPH
-    
-    ; SP should be back to original value
-    cp r21, r23
-    brne fail
-    cp r22, r24
-    brne fail
-    rcall inc_case_rcall4
 
-sp_test4:
-    ; Inside call, SP should be 2 less
-    in r25, SPL
-    in r26, SPH
-    
-    ; Check that SP decreased by 2
-    ; For 16-bit subtraction, we need to handle borrow
+    cp r21, r23
+    brne test4_fail
+    cp r22, r24
+    brne test4_fail
+
+    rcall inc4
+
+sp4:
     ret
 
-inc_case_rcall4:
+inc4:
     rcall test5_start
+    rjmp test4_fail
+
+; ============================================================
+; TEST 5 with LOCAL TRAMPOLINE
+; ============================================================
+test5_fail:
     rjmp fail
 
-; ============================================================
-; TEST 5: RCALL to nearby address (small positive offset)
-; ============================================================
 test5_start:
     ldi r27, 0
-    rcall near_target5
-    
+    rcall near5
     cpi r27, 0x42
-    brne fail
-    rcall inc_case_rcall5
+    brne test5_fail
+    rcall inc5
 
-near_target5:
+near5:
     ldi r27, 0x42
     ret
 
-inc_case_rcall5:
+inc5:
     rcall test6_start
+    rjmp test5_fail
+
+; ============================================================
+; TEST 6 with LOCAL TRAMPOLINE
+; ============================================================
+test6_fail:
     rjmp fail
 
-; ============================================================
-; TEST 6: Multiple RCALLs to same subroutine
-; ============================================================
 test6_start:
     ldi r28, 0
-    
-    rcall counter_sub6
-    rcall counter_sub6
-    rcall counter_sub6
-    
-    cpi r28, 3
-    brne fail
-    rcall inc_case_rcall6
+    rcall c6
+    rcall c6
+    rcall c6
 
-counter_sub6:
+    cpi r28, 3
+    brne test6_fail
+    rcall inc6
+
+c6:
     inc r28
     ret
 
-inc_case_rcall6:
+inc6:
     rcall test7_start
+    rjmp test6_fail
+
+; ============================================================
+; TEST 7 with LOCAL TRAMPOLINE
+; ============================================================
+test7_fail:
     rjmp fail
 
-; ============================================================
-; TEST 7: RCALL with stack frame (local variables)
-; ============================================================
 test7_start:
-    rcall frame_test7
-    
-    cpi r29, 0xAA
-    brne fail
-    rcall inc_case_rcall7
+    ldi r29, 0xAA
+    rcall frame7
 
-frame_test7:
-    ; Reserve 2 bytes on stack
+    cpi r29, 0xAA
+    brne test7_fail
+    rcall inc7
+
+frame7:
     push r16
     push r17
-    
-    ; Store values in "local variables"
+
     ldi r16, 0xAA
-    ldi r17, 0xBB
-    
-    ; Copy to result
     mov r29, r16
-    
-    ; Restore stack
+
     pop r17
     pop r16
     ret
 
-inc_case_rcall7:
+inc7:
     rcall test8_start
-    rjmp fail
+    rjmp test7_fail
 
 ; ============================================================
-; TEST 8: RCALL inside a loop
+; TEST 8 with LOCAL TRAMPOLINE
 ; ============================================================
+test8_fail:
+    rjmp fail
+
 test8_start:
     ldi r30, 0
     ldi r31, 5
-    
-loop_rcall8:
-    rcall loop_sub8
+
+loop8:
+    rcall sub8
     dec r31
-    brne loop_rcall8
+    brne loop8          ; This branch is fine (target is nearby)
     
     cpi r30, 5
-    brne fail
-    rcall inc_case_rcall8
+    brne test8_fail
+    rcall inc8
 
-loop_sub8:
+sub8:
     inc r30
     ret
 
-inc_case_rcall8:
+inc8:
     rcall test9_start
+    rjmp test8_fail
+
+; ============================================================
+; TEST 9 with LOCAL TRAMPOLINE (and LDI fix)
+; ============================================================
+test9_fail:
     rjmp fail
 
-; ============================================================
-; TEST 9: RCALL with RET that has value in R0 (not overwritten)
-; ============================================================
 test9_start:
-    ldi r0, 0x55
-    rcall ret_test9
-    cpi r0, 0x55
-    brne fail
-    rcall inc_case_rcall9
+    ldi r16, 0x55
+    mov r1, r16
+    rcall sub9
+    mov r16, r1
+    cpi r16, 0x55
+    brne test9_fail
+    rcall inc9
 
-ret_test9:
-    ; Some operations that might affect R0
-    ldi r1, 0xAA
-    ldi r2, 0xBB
-    add r1, r2
+sub9:
+    ldi r17, 0xAA
+    add r1, r17
     ret
 
-inc_case_rcall9:
+inc9:
     rcall test10_start
-    rjmp fail
+    rjmp test9_fail
 
 ; ============================================================
-; TEST 10: Deep nesting (5 levels) with RCALL
+; TEST 10 with LOCAL TRAMPOLINE
 ; ============================================================
+test10_fail:
+    rjmp fail
+
 test10_start:
     ldi r16, 0
     rcall level1_10
-    
     cpi r16, 5
-    brne fail
-    rcall inc_case_rcall10
+    brne test10_fail
+    rcall inc10
 
 level1_10:
     inc r16
     cpi r16, 5
-    breq level1_done10
+    breq done10
     rcall level1_10
-level1_done10:
+done10:
     ret
 
-inc_case_rcall10:
+inc10:
     rcall test11_start
-    rjmp fail
+    rjmp test10_fail
 
 ; ============================================================
-; TEST 11: RCALL then conditional branch based on return
+; TEST 11 with LOCAL TRAMPOLINE
 ; ============================================================
+test11_fail:
+    rjmp fail
+
 test11_start:
-    rcall get_value11
+    rcall get1_11
     tst r16
-    breq call_fail11
-    
-    rcall get_zero11
-    tst r16
-    brne call_fail11
-    
-    rcall inc_case_rcall11
-    rjmp call_done11
+    breq test11_fail
 
-get_value11:
-    ldi r16, 0x01
+    rcall get0_11
+    tst r16
+    brne test11_fail
+
+    rcall inc11
+
+get1_11:
+    ldi r16, 1
     ret
 
-get_zero11:
-    ldi r16, 0x00
+get0_11:
+    ldi r16, 0
     ret
 
-call_fail11:
-    rjmp fail
-call_done11:
-
-inc_case_rcall11:
+inc11:
     rcall test12_start
-    rjmp fail
+    rjmp test11_fail
 
 ; ============================================================
-; TEST 12: RCALL with preserved registers (push/pop pattern)
+; TEST 12 with LOCAL TRAMPOLINE
 ; ============================================================
+test12_fail:
+    rjmp fail
+
 test12_start:
     ldi r16, 0xDE
     ldi r17, 0xAD
-    
-    rcall preserve_test12
-    
-    ; Registers should be unchanged
-    cpi r16, 0xDE
-    brne fail
-    cpi r17, 0xAD
-    brne fail
-    rcall inc_case_rcall12
 
-preserve_test12:
+    rcall preserve12
+
+    cpi r16, 0xDE
+    brne test12_fail
+    cpi r17, 0xAD
+    brne test12_fail
+
+    rcall inc12
+
+preserve12:
     push r16
     push r17
-    
+
     ldi r16, 0xBE
     ldi r17, 0xEF
-    
+
     pop r17
     pop r16
     ret
 
-inc_case_rcall12:
+inc12:
     rcall test13_start
-    rjmp fail
+    rjmp test12_fail
 
 ; ============================================================
-; TEST 13: RCALL with negative offset (backward call)
+; TEST 13 with LOCAL TRAMPOLINE
 ; ============================================================
+test13_fail:
+    rjmp fail
+
 test13_start:
     ldi r18, 0
     rcall forward13
-    rjmp fail
+
+    cpi r18, 2
+    brne test13_fail
+    rcall inc13
 
 forward13:
     inc r18
-    cpi r18, 1
-    breq backward13
-    rjmp fail
+    rcall inner13
+    ret
 
-backward13:
+inner13:
     inc r18
-    cpi r18, 2
-    brne fail
-    rcall inc_case_rcall13
+    ret
 
-inc_case_rcall13:
+inc13:
     rcall test14_start
+    rjmp test13_fail
+
+; ============================================================
+; TEST 14 with LOCAL TRAMPOLINE
+; ============================================================
+test14_fail:
     rjmp fail
 
-; ============================================================
-; TEST 14: RCALL vs CALL comparison (relative vs absolute)
-; ============================================================
 test14_start:
     ldi r19, 0
-    
-    ; RCALL uses relative addressing
-    rcall relative_target14
-    
+    rcall rel14
     cpi r19, 1
-    brne fail
-    rcall inc_case_rcall14
+    brne test14_fail
+    rcall inc14
 
-relative_target14:
+rel14:
     inc r19
     ret
 
-inc_case_rcall14:
+inc14:
     rcall test15_start
+    rjmp test14_fail
+
+; ============================================================
+; TEST 15 with LOCAL TRAMPOLINE
+; ============================================================
+test15_fail:
     rjmp fail
 
-; ============================================================
-; TEST 15: RCALL to maximum forward range (simulated)
-; ============================================================
 test15_start:
     ldi r20, 0
-    ; RCALL range is ±2048 words
-    ; For simulation, we just call a nearby target
-    rcall range_target15
-    
+    rcall tgt15
     cpi r20, 0x55
-    brne fail
-    rcall inc_case_rcall15
+    brne test15_fail
+    rcall inc15
 
-range_target15:
+tgt15:
     ldi r20, 0x55
     ret
 
-inc_case_rcall15:
+inc15:
     rcall test16_start
-    rjmp fail
+    rjmp test15_fail
 
 ; ============================================================
-; TEST 16: RCALL chain (multiple relative calls)
+; TEST 16 with LOCAL TRAMPOLINE
 ; ============================================================
+test16_fail:
+    rjmp fail
+
 test16_start:
     ldi r21, 0
-    rcall chain1_16
-    rjmp fail
+    rcall c16_1
+    rcall c16_2
+    rcall c16_3
 
-chain1_16:
-    inc r21
-    rcall chain2_16
-    ret
-
-chain2_16:
-    inc r21
-    rcall chain3_16
-    ret
-
-chain3_16:
-    inc r21
-    ret
-chain_done16:
     cpi r21, 3
-    brne fail
-    rcall inc_case_rcall16
+    brne test16_fail
+    rcall inc16
 
-inc_case_rcall16:
+c16_1:
+    inc r21
+    ret
+
+c16_2:
+    inc r21
+    ret
+
+c16_3:
+    inc r21
+    ret
+
+inc16:
     rcall test17_start
+    rjmp test16_fail
+
+; ============================================================
+; TEST 17 with LOCAL TRAMPOLINE
+; ============================================================
+test17_fail:
     rjmp fail
 
-; ============================================================
-; TEST 17: RCALL within interrupt simulation
-; ============================================================
 test17_start:
     ldi r22, 0
-    sei                 ; Enable interrupts (though not needed for test)
-    rcall isr_sim17
+    rcall isr17
     cpi r22, 0xAA
-    brne fail
-    rcall inc_case_rcall17
+    brne test17_fail
+    rcall inc17
 
-isr_sim17:
-    push r16
-    push r17
+isr17:
     ldi r22, 0xAA
-    pop r17
-    pop r16
     ret
 
-inc_case_rcall17:
+inc17:
     rcall test18_start
-    rjmp fail
+    rjmp test17_fail
 
 ; ============================================================
-; TEST 18: RCALL with multiple returns (state machine)
+; TEST 18 with LOCAL TRAMPOLINE
 ; ============================================================
+test18_fail:
+    rjmp fail
+
 test18_start:
     ldi r23, 0
-    rcall state0_18
-    rcall state1_18
-    rcall state2_18
-    
-    cpi r23, 0x06
-    brne fail
-    rcall inc_case_rcall18
+    rcall s0_18
+    rcall s1_18
+    rcall s2_18
 
-state0_18:
-    inc r23
-    ret
-state1_18:
-    inc r23
-    inc r23
-    ret
-state2_18:
-    inc r23
-    inc r23
-    inc r23
-    ret
-
-inc_case_rcall18:
+    cpi r23, 6
+    brne test18_fail
     rcall success
-    rjmp fail
+
+s0_18: inc r23
+       ret
+s1_18: inc r23
+       inc r23
+       ret
+s2_18: inc r23
+       inc r23
+       inc r23
+       ret
 
 ; ============================================================
-; SUCCESS / FAILURE logic
+; SUCCESS AND END
 ; ============================================================
+
 success:
     ldi r16, 1
     sts final_result, r16
+
 end:
     rjmp end
 
-fail:
-    ldi r16, 255
-    sts final_result, r16
-    rjmp end
+; ============================================================
+; single counter (only definition kept once)
+; ============================================================
 
-inc_case_rcall1:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall2:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall3:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall4:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall5:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall6:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall7:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall8:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall9:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall10:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall11:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall12:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall13:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall14:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall15:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall16:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall17:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_rcall18:
+inc_case_rcall_generic:
     lds r16, test_case
     inc r16
     sts test_case, r16

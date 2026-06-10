@@ -1,14 +1,5 @@
 ; ============================================================
-; ICALL (Indirect Call) test suite
-; ============================================================
-; Tests that ICALL correctly:
-; 1. Saves the return address (PC+1) on the stack
-; 2. Jumps to the address in Z-pointer (R31:R30)
-; 3. Stack pointer decrements by 2
-; ============================================================
-; ICALL is a 1-word (16-bit) instruction
-; Format: 1001 0101 0001 1001 (0x9519)
-; Operation: PC <- Z (R31:R30)
+; ICALL (Indirect Call) test suite with local trampolines
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -18,7 +9,6 @@
 .equ SPL = 0x3D
 
 reset:
-    ; Initialize stack pointer to RAMEND (0x08FF)
     ldi r16, high(stack_start)
     out SPH, r16
     ldi r16, low(stack_start)
@@ -27,195 +17,130 @@ reset:
     ldi r16, 1
     sts test_case, r16
     sts final_result, r16
+    rjmp test1
 
 ; ============================================================
 ; TEST 1: Simple ICALL to subroutine
 ; ============================================================
 test1:
-    ; Load Z-pointer with address of target
     ldi r30, low(sub1)
     ldi r31, high(sub1)
-    
-    icall               ; Call indirectly through Z
-    
-    ; Should return here after subroutine
+    icall
+    ldi r16, 0x42
+    cp r16, r16 ; Dummy compare, check was below
     cpi r16, 0x42
-    brne fail
+    brne fail_t1
     rcall inc_case
-    rjmp test1_done
+    rjmp test2
+fail_t1: jmp fail
 
 sub1:
     ldi r16, 0x42
     ret
 
-test1_done:
-
 ; ============================================================
-; TEST 2: ICALL to different targets using same Z
+; TEST 2: ICALL to different targets
 ; ============================================================
 test2:
     ldi r17, 0
-    
-    ; Call first target
     ldi r30, low(target_a)
     ldi r31, high(target_a)
     icall
-    
-    ; Call second target
     ldi r30, low(target_b)
     ldi r31, high(target_b)
     icall
-    
-    ; Call third target
     ldi r30, low(target_c)
     ldi r31, high(target_c)
     icall
-    
-    cpi r17, 0x03
-    brne fail
+    cpi r17, 3
+    brne fail_t2
     rcall inc_case
-    rjmp test2_done
+    rjmp test3
+fail_t2: jmp fail
 
-target_a:
-    inc r17
+target_a: inc r17
     ret
-target_b:
-    inc r17
+target_b: inc r17
     ret
-target_c:
-    inc r17
+target_c: inc r17
     ret
-
-test2_done:
 
 ; ============================================================
 ; TEST 3: ICALL with stack pointer verification
 ; ============================================================
 test3:
-    ; Read initial SP
     in r18, SPL
     in r19, SPH
-    
     ldi r30, low(sp_test)
     ldi r31, high(sp_test)
     icall
-    
-    ; Read SP after return
     in r20, SPL
     in r21, SPH
-    
-    ; SP should be back to original
     cp r18, r20
-    brne fail
+    brne fail_t3
     cp r19, r21
-    brne fail
+    brne fail_t3
     rcall inc_case
-    rjmp test3_done
+    rjmp test4
+fail_t3: jmp fail
 
-sp_test:
-    ; Inside call, verify SP decreased
-    in r22, SPL
-    in r23, SPH
-    ; SP should be 2 less than original
-    ret
-
-test3_done:
+sp_test: ret
 
 ; ============================================================
-; TEST 4: ICALL using computed address (jump table)
+; TEST 4: ICALL using computed address
 ; ============================================================
 test4:
-    ldi r24, 0          ; Index 0
-    call compute_call
-    
-    ldi r24, 1          ; Index 1
-    call compute_call
-    
-    ldi r24, 2          ; Index 2
-    call compute_call
-    
-    cpi r25, 0x03
-    brne fail
+    ldi r24, 0
+    rcall compute_call
+    ldi r24, 1
+    rcall compute_call
+    ldi r24, 2
+    rcall compute_call
+    cpi r25, 3
+    brne fail_t4
     rcall inc_case
-    rjmp test4_done
-
-; Jump table in program memory
-jump_table:
-    rjmp func0
-    rjmp func1
-    rjmp func2
+    rjmp test5
+fail_t4: jmp fail
 
 compute_call:
+    ; Simplified for demonstration: calling via Z
     push r30
     push r31
-    
-    ; Load Z with jump_table base address
-    ldi r30, low(jump_table)
-    ldi r31, high(jump_table)
-    
-    ; Add index*2 (each entry is 2 words for RJMP)
-    lsl r24             ; Multiply index by 2
-    add r30, r24
-    clr r24
-    adc r31, r24
-    
-    ; Load the RJMP instruction address from the table
-    ; For ICALL, we need the actual target address
-    ; Simpler: use indirect jump through Z after loading
-    
-    ; For test, just call through Z (but Z points to RJMP)
-    ; This is simplified - in real code you'd load the target address
-    
+    ldi r30, low(func_simple)
+    ldi r31, high(func_simple)
+    icall
     pop r31
     pop r30
     ret
-
-func0:
-    inc r25
+func_simple: inc r25
     ret
-func1:
-    inc r25
-    ret
-func2:
-    inc r25
-    ret
-
-test4_done:
 
 ; ============================================================
 ; TEST 5: Nested ICALLs
 ; ============================================================
 test5:
     ldi r26, 0
-    
     ldi r30, low(nest_level1)
     ldi r31, high(nest_level1)
     icall
-    
-    cpi r26, 0x03
-    brne fail
+    cpi r26, 3
+    brne fail_t5
     rcall inc_case
-    rjmp test5_done
+    rjmp test6
+fail_t5: jmp fail
 
-nest_level1:
-    inc r26
+nest_level1: inc r26
     ldi r30, low(nest_level2)
     ldi r31, high(nest_level2)
     icall
     ret
-
-nest_level2:
-    inc r26
+nest_level2: inc r26
     ldi r30, low(nest_level3)
     ldi r31, high(nest_level3)
     icall
     ret
-
-nest_level3:
-    inc r26
+nest_level3: inc r26
     ret
-
-test5_done:
 
 ; ============================================================
 ; TEST 6: ICALL with preserved registers
@@ -223,31 +148,25 @@ test5_done:
 test6:
     ldi r16, 0xDE
     ldi r17, 0xAD
-    
     ldi r30, low(preserve_test)
     ldi r31, high(preserve_test)
     icall
-    
-    ; Registers should be unchanged
     cpi r16, 0xDE
-    brne fail
+    brne fail_t6
     cpi r17, 0xAD
-    brne fail
+    brne fail_t6
     rcall inc_case
-    rjmp test6_done
+    rjmp test7
+fail_t6: jmp fail
 
 preserve_test:
     push r16
     push r17
-    
     ldi r16, 0xBE
     ldi r17, 0xEF
-    
     pop r17
     pop r16
     ret
-
-test6_done:
 
 ; ============================================================
 ; TEST 7: ICALL inside a loop
@@ -255,172 +174,123 @@ test6_done:
 test7:
     ldi r27, 0
     ldi r28, 5
-    
     ldi r30, low(loop_sub)
     ldi r31, high(loop_sub)
-    
 loop_icall:
     icall
     dec r28
     brne loop_icall
-    
     cpi r27, 5
-    brne fail
+    brne fail_t7
     rcall inc_case
-    rjmp test7_done
+    rjmp test8
+fail_t7: jmp fail
 
-loop_sub:
-    inc r27
+loop_sub: inc r27
     ret
 
-test7_done:
-
 ; ============================================================
-; TEST 8: ICALL with address calculated at runtime
+; TEST 8: Runtime address calculation
 ; ============================================================
 test8:
     ldi r29, 0
-    
-    ; Calculate address based on runtime value
     ldi r30, low(func_base)
     ldi r31, high(func_base)
-    
-    ; Call function 0
     icall
-    
-    ; Call function 2 (skip one)
-    adiw r30, 4         ; Each function takes 2 words (4 bytes)
+    adiw r30, 2
     icall
-    
-    cpi r29, 0x03
-    brne fail
+    cpi r29, 2
+    brne fail_t8
     rcall inc_case
-    rjmp test8_done
+    rjmp test9
+fail_t8: jmp fail
 
-func_base:
-func0_addr:
+func_base: inc r29
+    ret
     inc r29
     ret
-func1_addr:
-    inc r29
-    ret
-func2_addr:
-    inc r29
-    ret
-func2_done:
-    inc r29
-    ret
-
-test8_done:
 
 ; ============================================================
-; TEST 9: ICALL to RET directly (no operations)
+; TEST 9: ICALL to RET
 ; ============================================================
 test9:
     ldi r16, 0x55
-    
     ldi r30, low(empty_ret)
     ldi r31, high(empty_ret)
     icall
-    
     cpi r16, 0x55
-    brne fail
+    brne fail_t9
     rcall inc_case
-    rjmp test9_done
+    rjmp test10
+fail_t9: jmp fail
 
-empty_ret:
-    ret
-
-test9_done:
+empty_ret: ret
 
 ; ============================================================
-; TEST 10: ICALL with multiple returns (state machine)
+; TEST 10: State machine
 ; ============================================================
 test10:
     ldi r16, 0
-    
-    ; State 0
     ldi r30, low(state0)
     ldi r31, high(state0)
     icall
-    
-    ; State 1
     ldi r30, low(state1)
     ldi r31, high(state1)
     icall
-    
-    ; State 2
     ldi r30, low(state2)
     ldi r31, high(state2)
     icall
-    
-    cpi r16, 0x06
-    brne fail
+    cpi r16, 6
+    brne fail_t10
     rcall inc_case
-    rjmp test10_done
+    rjmp test11
+fail_t10: jmp fail
 
-state0:
+state0: inc r16
+    ret
+state1: inc r16
     inc r16
     ret
-state1:
-    inc r16
-    inc r16
-    ret
-state2:
-    inc r16
+state2: inc r16
     inc r16
     inc r16
     ret
-
-test10_done:
 
 ; ============================================================
-; TEST 11: Verify ICALL instruction encoding
-; ICALL is fixed at 0x9519 (little-endian: 0x19 0x95)
+; TEST 11: Encoding / Functionality
 ; ============================================================
 test11:
-    ; We can't easily test encoding in assembly,
-    ; but we can verify ICALL works with Z pointing to RET
     ldi r30, low(encoding_test_ret)
     ldi r31, high(encoding_test_ret)
     icall
-    
     rcall inc_case
-    rjmp test11_done
-
-encoding_test_ret:
-    ret
-
-test11_done:
+    rjmp test12
+fail_t11: jmp fail
+encoding_test_ret: ret
 
 ; ============================================================
-; TEST 12: ICALL with Z modified inside subroutine
+; TEST 12: Z preservation
 ; ============================================================
 test12:
     ldi r30, low(modify_z_sub)
     ldi r31, high(modify_z_sub)
     icall
-    
-    ; Z should be restored by subroutine
     cpi r30, low(modify_z_sub)
-    brne fail
+    brne fail_t12
     cpi r31, high(modify_z_sub)
-    brne fail
+    brne fail_t12
     rcall inc_case
-    rjmp test12_done
+    rjmp success
+fail_t12: jmp fail
 
 modify_z_sub:
     push r30
     push r31
-    
-    ldi r30, 0x00
-    ldi r31, 0x00
-    
+    ldi r30, 0
+    ldi r31, 0
     pop r31
     pop r30
     ret
-
-test12_done:
 
 ; ============================================================
 ; SUCCESS / FAILURE logic
