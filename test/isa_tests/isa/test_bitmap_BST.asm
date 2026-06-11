@@ -56,16 +56,21 @@ test2:
 ; ============================================================
 test3:
     ldi r16, 0xFE
-    bst r16, 0          ; Bit 0 is 0, so T becomes 0
+    clr r17             ; Clear R17 completely (R17 = 0x00) so bits 1-7 are guaranteed 0
     
-    set                 ; Set T to 1 manually
-    bld r17, 0          ; (Just to clear R17)
+    set                 ; Force T = 1 first. This proves that a subsequent BST 
+                        ; actually changes the flag to 0, rather than just leaving it at a default 0.
+
+    bst r16, 0          ; Bit 0 of R16 is 0. This should clear the T flag (T = 0).
     
-    bld r17, 0          ; Load T (0) into bit 0 of R17
+    bld r17, 0          ; Copy the T flag into bit 0 of R17. 
+                        ; If BST worked, R17 bit 0 becomes 0. Since bits 1-7 were already 0, R17 should be 0x00.
     
     cpi r17, 0
-    brne fail
+    brne fail           ; Branch if Not Equal: Fail if R17 is not exactly 0 (meaning T stayed 1 or R17 had dirty bits)
+    
     rcall inc_case
+    
 
 ; ============================================================
 ; SUCCESS / FAILURE logic
