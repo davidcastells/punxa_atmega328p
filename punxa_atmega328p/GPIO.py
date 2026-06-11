@@ -286,11 +286,14 @@ class VirtualGPIO(py4hw.Logic):
         add_map = {0x3: 'PINB', 0x4: 'DDRB', 0x5 : 'PORTB'}
         
         if (self.interface.read.get()):
-            print(f'Reading GPIO {add_map[add]}')
+            
             if (add == 0x03 or add == 0x05):
                 self.interface.read_data.prepare(self.port_b)
             elif (add == 0x04):
                 self.interface.read_data.prepare(self.ddr_b)
+                
+            print(f'Reading GPIO {add_map[add]} = {self.interface.read_data.next:02X}')
+            
             self.interface.resp.prepare(1)
             
         elif (self.interface.write.get()):
