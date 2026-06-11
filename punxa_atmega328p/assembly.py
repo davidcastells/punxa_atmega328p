@@ -345,7 +345,7 @@ def parts_to_ins(parts):
         assert (A >= 0) and (A <= 0x1F)
         assert (b >= 0) and (b <= 7)
         p1 = 0b1000 
-        p2 = A > 1
+        p2 = A >> 1
         p3 = ((A & 1) << 3) | b
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
 
@@ -386,8 +386,9 @@ def parts_to_ins(parts):
         return [0b1001_0100_1011_1000]
     
     elif (op == 'CLT'):
-        # CLT -> 1001 0100 1100 1000
-        return [ 0b1001_0100_1100_1000]
+        # CLT -> 1001 0100 1110 1000
+        # Pseudo-instruction (BCLR 6)
+        return [ 0b1001_0100_1110_1000]
     
     elif (op == 'CLV'):
         # CLV -> 1001 0100 1010 1000
@@ -710,7 +711,7 @@ def parts_to_ins(parts):
         assert (A >= 0) and (A <= 0x1F)
         assert (b >= 0) and (b <= 7)
         p1 = 0b1010 
-        p2 = A > 1
+        p2 = A >> 1
         p3 = ((A & 1) << 3) | b        
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
         
