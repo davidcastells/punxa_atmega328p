@@ -17,7 +17,7 @@ We implemented an assembler. It supports the following features:
 
 We have some ISA tests with the following results.
 
-Total: 67 Correct: 20 (29.9 %)
+Total: 67 Correct: 28 (41.8 %)
 <pre>
-29.9 %   |██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░|
+41.8 %   |███████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░|
 </pre>
