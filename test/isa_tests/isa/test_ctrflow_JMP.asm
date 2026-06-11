@@ -1,16 +1,5 @@
 ; ============================================================
-; JMP (Direct Jump) test suite
-; ============================================================
-; Tests that JMP correctly:
-; 1. Jumps to the absolute address specified
-; 2. Does NOT modify the stack
-; 3. Does NOT save a return address
-; ============================================================
-; JMP is a 2-word (32-bit) instruction
-; Word1: 1001 010k kkkk 110k
-; Word2: kkkk kkkk kkkk kkkk (22-bit absolute address)
-; Operation: PC <- k (22-bit address)
-; No stack operation, no return address saved
+; JMP (Direct Jump) test suite with local trampolines
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -19,7 +8,6 @@
 .equ SPL = 0x3D
 
 reset:
-    ; Initialize stack pointer (though JMP doesn't use it)
     ldi r16, high(0x08FF)
     out SPH, r16
     ldi r16, low(0x08FF)
@@ -28,88 +16,71 @@ reset:
     ldi r16, 1
     sts test_case, r16
     sts final_result, r16
-    
-    ; First JMP test
     jmp test1_start
 
 ; ============================================================
-; TEST 1: Simple JMP to a label
+; TEST 1: Simple JMP
 ; ============================================================
 test1_start:
     ldi r16, 0
     jmp target1
-    rjmp fail           ; Should not execute
-
+    rjmp local_fail1
 target1:
     inc r16
     cpi r16, 1
-    brne fail
-    jmp inc_case_jmp1
-
-inc_case_jmp1:
+    brne local_fail1
+    rcall inc_case
     jmp test2_start
+local_fail1: jmp fail
 
 ; ============================================================
-; TEST 2: JMP that wraps around (within program memory)
+; TEST 2: Far JMP
 ; ============================================================
 test2_start:
     ldi r17, 0
     jmp far_target2
-    rjmp fail
-
+    rjmp local_fail2
 far_target2:
     inc r17
     cpi r17, 1
-    brne fail
-    jmp inc_case_jmp2
-
-inc_case_jmp2:
+    brne local_fail2
+    rcall inc_case
     jmp test3_start
+local_fail2: jmp fail
 
 ; ============================================================
-; TEST 3: Verify that JMP does NOT affect stack
+; TEST 3: Verify stack neutrality
 ; ============================================================
 test3_start:
-    ; Read initial SP
     in r18, SPL
     in r19, SPH
-    
     jmp stack_check3
 stack_return3:
-    
-    ; Read SP after JMP and return
     in r20, SPL
     in r21, SPH
-    
-    ; SP should be unchanged
     cp r18, r20
-    brne fail
+    brne local_fail3
     cp r19, r21
-    brne fail
-    jmp inc_case_jmp3
+    brne local_fail3
+    rcall inc_case
+    jmp test4_start
+local_fail3: jmp fail
 
 stack_check3:
-    ; SP should be same as before JMP
     in r22, SPL
     in r23, SPH
     cp r18, r22
-    brne stack_fail
+    brne local_fail3
     cp r19, r23
-    brne stack_fail
+    brne local_fail3
     jmp stack_return3
-stack_fail:
-    jmp fail
-
-inc_case_jmp3:
-    jmp test4_start
 
 ; ============================================================
-; TEST 4: JMP used to create a loop
+; TEST 4: JMP Loop
 ; ============================================================
 test4_start:
     ldi r24, 0
     ldi r25, 5
-    
 loop4:
     inc r24
     dec r25
@@ -119,222 +90,160 @@ loop4_continue:
     jmp loop4
 loop4_done:
     cpi r24, 5
-    brne fail
-    jmp inc_case_jmp4
-
-inc_case_jmp4:
+    brne local_fail4
+    rcall inc_case
     jmp test5_start
+local_fail4: jmp fail
 
 ; ============================================================
-; TEST 5: JMP to address with RJMP back
+; TEST 5: JMP to target with return
 ; ============================================================
 test5_start:
     ldi r26, 0
     jmp jmp_target5
-    rjmp fail
-
+    rjmp local_fail5
 jmp_target5:
     inc r26
     cpi r26, 1
-    brne fail
+    brne local_fail5
     rjmp back_from_jmp5
-    rjmp fail
-
 back_from_jmp5:
-    jmp inc_case_jmp5
-
-inc_case_jmp5:
+    rcall inc_case
     jmp test6_start
+local_fail5: jmp fail
 
 ; ============================================================
-; TEST 6: Multiple JMPs in sequence
+; TEST 6: JMP Chain
 ; ============================================================
 test6_start:
     ldi r27, 0
     jmp chain1
-    rjmp fail
-
-chain1:
-    inc r27
-    jmp chain2
-    rjmp fail
-
-chain2:
-    inc r27
-    jmp chain3
-    rjmp fail
-
-chain3:
-    inc r27
-    jmp chain_done
-    rjmp fail
-
+local_fail6: jmp fail
+chain1: inc r27
+        jmp chain2
+chain2: inc r27
+        jmp chain3
+chain3: inc r27
+        jmp chain_done
 chain_done:
     cpi r27, 3
-    brne fail
-    jmp inc_case_jmp6
-
-inc_case_jmp6:
+    brne local_fail6
+    rcall inc_case
     jmp test7_start
 
 ; ============================================================
-; TEST 7: JMP used as a switch (with address calculation)
+; TEST 7: Switch logic (indirect jump)
 ; ============================================================
 test7_start:
-    ldi r28, 2          ; Select case 2
-    
-    ; In real code, you'd compute the JMP target
-    ; For this test, we'll use a lookup table
+    ldi r28, 2
     ldi r30, low(switch_table7)
     ldi r31, high(switch_table7)
-    
-    ; Add index * 2 (each entry is RJMP)
     mov r29, r28
     lsl r29
     add r30, r29
-    clr r29
-    adc r31, r29
-    
-    ijmp                ; Use IJMP to indirect through table
-    ; Alternative: you could compute absolute JMP address
-    
+    ldi r16, 0
+    adc r31, r16
+    ijmp
 switch_return7:
-    cpi r28, 99         ; Should be modified by case
-    brne fail
-    jmp inc_case_jmp7
+    cpi r28, 99
+    brne local_fail7
+    rcall inc_case
+    jmp test8_start
+local_fail7: jmp fail
 
 switch_table7:
     rjmp case0_7
     rjmp case1_7
     rjmp case2_7
     rjmp case3_7
-
-case0_7:
-    ldi r28, 0
-    rjmp switch_return7
-case1_7:
-    ldi r28, 1
-    rjmp switch_return7
-case2_7:
-    ldi r28, 99
-    rjmp switch_return7
-case3_7:
-    ldi r28, 3
-    rjmp switch_return7
-
-inc_case_jmp7:
-    jmp test8_start
+case0_7: ldi r28, 0
+         rjmp switch_return7
+case1_7: ldi r28, 1
+         rjmp switch_return7
+case2_7: ldi r28, 99
+         rjmp switch_return7
+case3_7: ldi r28, 3
+         rjmp switch_return7
 
 ; ============================================================
-; TEST 8: Verify JMP at reset vector (simulated)
+; TEST 8: Reset simulation
 ; ============================================================
 test8_start:
     ldi r16, 0
     jmp reset_vector8
-    rjmp fail
-
+local_fail8: jmp fail
 reset_vector8:
     inc r16
-    ; Simulate program start
     jmp main8
-    rjmp fail
-
 main8:
     inc r16
     cpi r16, 2
-    brne fail
-    jmp inc_case_jmp8
-
-inc_case_jmp8:
+    brne local_fail8
+    rcall inc_case
     jmp test9_start
 
 ; ============================================================
-; TEST 9: JMP to self (infinite loop simulation)
+; TEST 9: Self-JMP loop
 ; ============================================================
 test9_start:
     ldi r17, 0
     jmp loop9_entry
-    rjmp fail
-
+local_fail9: jmp fail
 loop9_entry:
     inc r17
     cpi r17, 1
     breq loop9_done
     jmp loop9_entry
 loop9_done:
-    jmp inc_case_jmp9
-
-inc_case_jmp9:
+    rcall inc_case
     jmp test10_start
 
 ; ============================================================
-; TEST 10: JMP after ICALL (mix of jump types)
+; TEST 10: Mixed JMP/ICALL
 ; ============================================================
 test10_start:
     ldi r18, 0
-    
-    ; Set up Z-pointer for ICALL
     ldi r30, low(icall_target10)
     ldi r31, high(icall_target10)
-    icall               ; ICALL pushes return address
-    
+    icall
     cpi r18, 1
-    brne fail
-    jmp inc_case_jmp10
-
+    brne local_fail10
+    rcall inc_case
+    jmp test11_start
+local_fail10: jmp fail
 icall_target10:
     inc r18
-    jmp back_from_icall10
-    rjmp fail
-
-back_from_icall10:
-    ret                 ; Return from ICALL
-
-inc_case_jmp10:
-    jmp test11_start
+    ret
 
 ; ============================================================
-; TEST 11: JMP forward and backward
+; TEST 11: Forward/Backward JMP
 ; ============================================================
 test11_start:
     ldi r19, 0
-    
-    ; Forward JMP
     jmp forward11
-    rjmp fail
-
+local_fail11: jmp fail
 forward11:
     inc r19
-    
-    ; Backward JMP
     jmp backward11
-    rjmp fail
-
 backward11:
     inc r19
-    
     cpi r19, 2
-    brne fail
-    jmp inc_case_jmp11
-
-inc_case_jmp11:
+    brne local_fail11
+    rcall inc_case
     jmp test12_start
 
 ; ============================================================
-; TEST 12: JMP to an absolute address with large offset
+; TEST 12: Success
 ; ============================================================
 test12_start:
     ldi r20, 0
     jmp far_away12
-    rjmp fail
-
+local_fail12: jmp fail
 far_away12:
     inc r20
     cpi r20, 1
-    brne fail
-    jmp inc_case_jmp12
-
-inc_case_jmp12:
+    brne local_fail12
+    rcall inc_case
     jmp success
 
 ; ============================================================
@@ -351,73 +260,7 @@ fail:
     sts final_result, r16
     rjmp end
 
-inc_case_jmp1:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp2:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp3:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp4:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp5:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp6:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp7:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp8:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp9:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp10:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp11:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
-
-inc_case_jmp12:
+inc_case:
     lds r16, test_case
     inc r16
     sts test_case, r16

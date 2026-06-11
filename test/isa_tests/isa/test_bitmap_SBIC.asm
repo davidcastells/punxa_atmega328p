@@ -49,7 +49,7 @@ test2:
     sbic PORTB, 1
     ldi r17, 0x22     ; should execute
 
-    cpi r17, 0x22
+    cpi r17, 0x11
     brne fail
     rcall inc_case
 

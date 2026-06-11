@@ -47,9 +47,12 @@ return1:
     ; Interrupts should be re-enabled
     sei                 ; For verification we'll check I flag
     cpi r16, 0x42
-    brne fail
+    brne test1_fail
     rcall inc_case
     rjmp test1_done
+
+test1_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr1:
     ldi r16, 0x42
@@ -76,10 +79,13 @@ return2:
     in r17, SREG_ADDR
     sbrc r17, 7         ; Skip if I flag is set
     rjmp i_set2
-    rjmp fail
+    rjmp test2_fail
 i_set2:
     rcall inc_case
     rjmp test2_done
+
+test2_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr2:
     reti
@@ -101,9 +107,12 @@ test3:
     rjmp isr3a
 return3a:
     cpi r18, 0x02
-    brne fail
+    brne test3_fail
     rcall inc_case
     rjmp test3_done
+
+test3_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr3a:
     inc r18
@@ -144,11 +153,14 @@ return4:
     in r22, SPH
     
     cp r19, r21
-    brne fail
+    brne test4_fail
     cp r20, r22
-    brne fail
+    brne test4_fail
     rcall inc_case
     rjmp test4_done
+
+test4_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr4:
     reti
@@ -172,13 +184,16 @@ test5:
     rjmp isr5
 return5:
     cpi r23, 0x11
-    brne fail
+    brne test5_fail
     cpi r24, 0x22
-    brne fail
+    brne test5_fail
     cpi r25, 0x33
-    brne fail
+    brne test5_fail
     rcall inc_case
     rjmp test5_done
+
+test5_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr5:
     push r23
@@ -211,7 +226,7 @@ test6:
 ret_return:
     in r26, SREG_ADDR
     sbrc r26, 7         ; Check I flag
-    rjmp fail           ; I should still be 0 after RET
+    rjmp test6_fail     ; I should still be 0 after RET
     
     ; Test RETI (should set I)
     ldi r30, low(reti_return)
@@ -222,10 +237,13 @@ ret_return:
 reti_return:
     in r27, SREG_ADDR
     sbrs r27, 7         ; Check I flag
-    rjmp fail           ; I should be 1 after RETI
+    rjmp test6_fail     ; I should be 1 after RETI
     
     rcall inc_case
     rjmp test6_done
+
+test6_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 test_ret:
     ret                 ; Does NOT set I flag
@@ -257,9 +275,12 @@ return7a:
     rjmp isr7b
 return7b:
     cpi r28, 0x04
-    brne fail
+    brne test7_fail
     rcall inc_case
     rjmp test7_done
+
+test7_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr7a:
     inc r28
@@ -289,13 +310,16 @@ test8:
     rjmp isr8
 return8:
     cpi r29, 0x01
-    brne fail
+    brne test8_fail
     cpi r30, 0x02
-    brne fail
+    brne test8_fail
     cpi r31, 0x03
-    brne fail
+    brne test8_fail
     rcall inc_case
     rjmp test8_done
+
+test8_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr8:
     push r29
@@ -334,15 +358,18 @@ test9:
     rjmp isr9
 return9:
     ; Check flags are preserved (except I)
-    brcc fail           ; C should be 1
-    brne fail           ; Z should be 1
-    brmi fail           ; N should be 1
-    brvs fail           ; V should be 1
-    brhc fail           ; H should be 1
-    brtc fail           ; T should be 1
+    brcc test9_fail      ; C should be 1
+    brne test9_fail      ; Z should be 1
+    brmi test9_fail      ; N should be 1
+    brvs test9_fail      ; V should be 1
+    brhc test9_fail      ; H should be 1
+    brtc test9_fail      ; T should be 1
     
     rcall inc_case
     rjmp test9_done
+
+test9_fail:             ; Local trampoline - close to branches
+    rjmp fail
 
 isr9:
     ; RETI should preserve all flags except I
@@ -365,9 +392,12 @@ test10:
     rjmp isr10a
 return10a:
     cpi r16, 0x03
-    brne fail
+    brne test10_fail
     rcall inc_case
     rjmp test10_done
+
+test10_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr10a:
     inc r16
@@ -402,6 +432,9 @@ return11:
     rcall inc_case
     rjmp test11_done
 
+test11_fail:            ; Local trampoline - close to branches
+    rjmp fail
+
 encoding_test11:
     reti
 
@@ -420,6 +453,9 @@ test12:
 return12:
     rcall inc_case
     rjmp test12_done
+
+test12_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr12:
     ; Some operations
@@ -453,10 +489,13 @@ return13:
     in r21, SREG_ADDR
     sbrc r21, 7
     rjmp i_ok13
-    rjmp fail
+    rjmp test13_fail
 i_ok13:
     rcall inc_case
     rjmp test13_done
+
+test13_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr13:
     reti
@@ -477,9 +516,12 @@ return14:
     ; I flag should be 1 (RETI forces it to 1)
     in r22, SREG_ADDR
     sbrs r22, 7
-    rjmp fail
+    rjmp test14_fail
     rcall inc_case
     rjmp test14_done
+
+test14_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr14:
     cli                 ; Clear I flag inside ISR
@@ -504,15 +546,18 @@ test15:
     rjmp isr15
 return15:
     cpi r23, 0xDE
-    brne fail
+    brne test15_fail
     cpi r24, 0xAD
-    brne fail
+    brne test15_fail
     cpi r25, 0xBE
-    brne fail
+    brne test15_fail
     cpi r26, 0xEF
-    brne fail
+    brne test15_fail
     rcall inc_case
     rjmp test15_done
+
+test15_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr15:
     push r23
@@ -534,7 +579,7 @@ isr15:
 test15_done:
 
 ; ============================================================
-; TEST 16: RETI after stack cleanup (frame pointer)
+; TEST 16: RETI after stack cleanup (frame pointer) - FIXED
 ; ============================================================
 test16:
     cli
@@ -547,6 +592,9 @@ return16:
     rcall inc_case
     rjmp test16_done
 
+test16_fail:            ; Local trampoline - close to branches
+    rjmp fail
+
 isr16:
     ; Create stack frame
     push r28
@@ -554,9 +602,8 @@ isr16:
     in r28, SPL
     in r29, SPH
     
-    ; Use frame
-    ldi r18, 0x42
-    std Y+0, r18
+    ; Use frame - replaced STD with direct store
+    st Y, r18           ; Store through Y pointer (no displacement needed)
     
     ; Clean up frame
     pop r29
@@ -579,6 +626,9 @@ return17:
     rcall inc_case
     rjmp test17_done
 
+test17_fail:            ; Local trampoline - close to branches
+    rjmp fail
+
 isr17:
     ; Simulate watchdog ISR
     wdr                 ; Reset watchdog timer
@@ -599,9 +649,12 @@ test18:
 return18:
     in r19, SREG_ADDR
     sbrs r19, 7
-    rjmp fail
+    rjmp test18_fail
     rcall inc_case
     rjmp success
+
+test18_fail:            ; Local trampoline - close to branches
+    rjmp fail
 
 isr18:
     reti

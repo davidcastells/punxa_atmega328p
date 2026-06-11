@@ -50,7 +50,10 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
     mask_13 = 0b1111_1111_1000_1111 # used in BSET
     
     
-    
+    match (ins):
+        case 0b1001_0101_0001_1001: return 'ICALL'
+        case 0b1001_0100_0001_1001: return 'IJMP'
+        
     match (ins & mask_4):
         case 0b1110_0000_0000_0000: return 'LDI'
         case 0b1100_0000_0000_0000: return 'RJMP'
@@ -70,7 +73,9 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
     match (ins & mask_10):
         case 0b1001_0100_0000_1100: return 'JMP'
         case 0b1001_0100_0000_1110: return 'CALL'
-        
+    
+    
+    
     match (ins & mask_11):
         case 0b1001_0000_0000_0000: return 'LDS'
         case 0b1001_0010_0000_0000: return 'STS'
@@ -256,8 +261,7 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b1001010110001000: return 'SLEEP'
         case 0b1001010110101000: return 'WDR'
         case 0b1001010110011000: return 'BREAK'
-        case 0b1001010000001001: return 'IJMP'
-        case 0b1001010100001001: return 'ICALL'
+                
         case 0b1001010100001000: return 'RET'
         case 0b1001010100011000: return 'RETI'
         case 0b1001010111101000: return'SPM'

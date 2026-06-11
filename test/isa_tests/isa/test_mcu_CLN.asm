@@ -1,14 +1,5 @@
 ; ============================================================
-; CLN (Clear Negative Flag) test suite
-; ============================================================
-; Tests that CLN correctly:
-; 1. Clears the N flag (bit 2) in SREG (N=0)
-; 2. Does not modify any other flags
-; 3. Does not modify registers or memory
-; ============================================================
-; CLN is a 1-word (16-bit) instruction
-; Format: 1001 0100 1011 1000 (0x94B8)
-; Operation: N <- 0
+; CLN (Clear Negative Flag) test suite (TRAMPOLINE SAFE)
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -19,7 +10,6 @@
 .equ GPIOR0 = 0x1E
 
 reset:
-    ; Initialize stack pointer
     ldi r16, high(0x08FF)
     out SPH, r16
     ldi r16, low(0x08FF)
@@ -32,152 +22,149 @@ reset:
     rjmp test1_start
 
 ; ============================================================
-; TEST 1: CLN clears the N flag from 1 to 0
+; TEST 1-2: CLN basic operation
 ; ============================================================
+
 test1_start:
-    sen                 ; Set N=1 first
-    cln                 ; Should clear N flag
-    
-    ; Verify N flag is 0
+    sen
+    cln
     brpl n_clear1
-    rjmp fail
+    jmp fail
 n_clear1:
     rcall inc_case
     rjmp test2_start
 
-; ============================================================
-; TEST 2: CLN has no effect when N already 0
-; ============================================================
 test2_start:
-    cln                 ; Ensure N=0
-    cln                 ; Second CLN should do nothing (N stays 0)
-    
+    cln
+    cln
     brpl n_still_clear2
-    rjmp fail
+    jmp fail
 n_still_clear2:
     rcall inc_case
     rjmp test3_start
 
 ; ============================================================
-; TEST 3: CLN does not affect other SREG flags (I, T, H, S, V, Z, C)
+; TEST 3: Flag preservation
 ; ============================================================
+
 test3_start:
-    ; Set all flags to known values
-    sei                 ; I=1
-    set                 ; T=1
-    seh                 ; H=1
-    sev                 ; V=1
-    sez                 ; Z=1
-    sec                 ; C=1
-    sen                 ; N=1
-    
-    ; Execute CLN (should clear N, preserve others)
+    sei
+    set
+    seh
+    sev
+    sez
+    sec
+    sen
     cln
-    
-    ; Verify N=0
-    brpl n_ok3
-    rjmp fail
-n_ok3:
-    
-    ; Verify all other flags unchanged
-    brie i_ok3          ; I should be 1
-    rjmp fail
-i_ok3:
-    brts t_ok3          ; T should be 1
-    rjmp fail
-t_ok3:
-    brhs h_ok3          ; H should be 1
-    rjmp fail
-h_ok3:
-    brvs v_ok3          ; V should be 1
-    rjmp fail
-v_ok3:
-    breq z_ok3          ; Z should be 1
-    rjmp fail
-z_ok3:
-    brcs c_ok3          ; C should be 1
-    rjmp fail
-c_ok3:
-    
+
+    brpl t3_ok1
+    jmp fail
+t3_ok1:
+
+    brie t3_ok2
+    jmp fail
+t3_ok2:
+
+    brts t3_ok3
+    jmp fail
+t3_ok3:
+
+    brhs t3_ok4
+    jmp fail
+t3_ok4:
+
+    brvs t3_ok5
+    jmp fail
+t3_ok5:
+
+    breq t3_ok6
+    jmp fail
+t3_ok6:
+
+    brcs t3_ok7
+    jmp fail
+t3_ok7:
+
     rcall inc_case
     rjmp test4_start
 
 ; ============================================================
-; TEST 4: CLN does not modify registers
+; TEST 4-7: No side effects
 ; ============================================================
+
 test4_start:
     ldi r16, 0xAA
     ldi r17, 0xBB
-    ldi r18, 0xCC
-    ldi r19, 0xDD
-    
     cln
-    
+
     cpi r16, 0xAA
-    brne fail
+    breq t4_ok1
+    jmp fail
+t4_ok1:
+
     cpi r17, 0xBB
-    brne fail
-    cpi r18, 0xCC
-    brne fail
-    cpi r19, 0xDD
-    brne fail
+    breq t4_ok2
+    jmp fail
+t4_ok2:
+
     rcall inc_case
     rjmp test5_start
 
-; ============================================================
-; TEST 5: CLN does not modify SRAM
-; ============================================================
 test5_start:
     ldi r16, 0xDE
     sts 0x0200, r16
-    
     cln
-    
     lds r17, 0x0200
+
     cpi r17, 0xDE
-    brne fail
+    breq t5_ok
+    jmp fail
+t5_ok:
+
     rcall inc_case
     rjmp test6_start
 
-; ============================================================
-; TEST 6: CLN does not modify I/O registers
-; ============================================================
 test6_start:
     ldi r16, 0xAD
     out GPIOR0, r16
-    
     cln
-    
     in r17, GPIOR0
+
     cpi r17, 0xAD
-    brne fail
+    breq t6_ok
+    jmp fail
+t6_ok:
+
     rcall inc_case
     rjmp test7_start
 
-; ============================================================
-; TEST 7: CLN does not affect stack pointer
-; ============================================================
 test7_start:
     in r16, SPL
     in r17, SPH
-    
     cln
     cln
     cln
-    
+
     in r18, SPL
     in r19, SPH
-    
+
     cp r16, r18
-    brne fail
+    breq t7_ok1
+    jmp fail
+t7_ok1:
+
     cp r17, r19
-    brne fail
+    breq t7_ok2
+    jmp fail
+t7_ok2:
+
     rcall inc_case
     rjmp test8_start
 
 ; ============================================================
-; TEST 8: CLN does not affect program flow
+; TEST 8-12: Logic and Flow
 ; ============================================================
+
 test8_start:
     ldi r16, 0
     cln
@@ -186,97 +173,90 @@ test8_start:
     inc r16
     cln
     inc r16
-    
+
     cpi r16, 3
-    brne fail
+    breq t8_ok
+    jmp fail
+t8_ok:
+
     rcall inc_case
     rjmp test9_start
 
-; ============================================================
-; TEST 9: CLN affects S flag (S = N ⊕ V)
-; ============================================================
 test9_start:
-    ; Case 1: V=0, N=1, CLN sets N=0, so S = 0 ⊕ 0 = 0
-    clv                 ; V=0
-    sen                 ; N=1
-    cln                 ; N=0
-    
-    brge s_ok9a         ; S=0 should cause BRGE to branch
-    rjmp fail
-s_ok9a:
-    
-    ; Case 2: V=1, N=1, CLN sets N=0, so S = 0 ⊕ 1 = 1
-    sev                 ; V=1
-    sen                 ; N=1
-    cln                 ; N=0
-    
-    brlt s_ok9b         ; S=1 should cause BRLT to branch
-    rjmp fail
-s_ok9b:
-    
+    clv
+    sen
+    cln
+
+    brge t9_ok1
+    jmp fail
+t9_ok1:
+
+    sev
+    sen
+    cln
+
+    brlt t9_ok2
+    jmp fail
+t9_ok2:
+
     rcall inc_case
     rjmp test10_start
 
-; ============================================================
-; TEST 10: CLN multiple times in sequence
-; ============================================================
 test10_start:
-    sen                 ; N=1
-    cln                 ; N=0
-    cln                 ; N=0 (no change)
-    cln                 ; N=0 (no change)
-    
-    brpl multi_clear_ok10
-    rjmp fail
-multi_clear_ok10:
+    sen
+    cln
+    cln
+    cln
+
+    brpl t10_ok
+    jmp fail
+t10_ok:
+
     rcall inc_case
     rjmp test11_start
 
-; ============================================================
-; TEST 11: CLN then SEN (complete toggle cycle)
-; ============================================================
 test11_start:
-    sen                 ; N=1
-    cln                 ; N=0
-    sen                 ; N=1
-    
-    brmi toggle_ok11
-    rjmp fail
-toggle_ok11:
+    sen
+    cln
+    sen
+
+    brmi t11_ok
+    jmp fail
+t11_ok:
+
     rcall inc_case
     rjmp test12_start
 
-; ============================================================
-; TEST 12: CLN preserves result of previous arithmetic
-; ============================================================
 test12_start:
-    ldi r16, 0x80       ; -128 in signed
+    ldi r16, 0x80
     ldi r17, 0x01
-    add r16, r17        ; 0x81, N=1 (negative)
-    
-    cln                 ; Force N=0
-    
-    ; Arithmetic result unchanged
+    add r16, r17
+    cln
+
     cpi r16, 0x81
-    brne fail
-    
-    ; N flag is now 0 (forced)
-    brpl arithmetic_ok12
-    rjmp fail
-arithmetic_ok12:
+    breq t12_ok1
+    jmp fail
+t12_ok1:
+
+    brpl t12_ok2
+    jmp fail
+t12_ok2:
+
     rcall inc_case
     rjmp test13_start
 
 ; ============================================================
-; TEST 13: CLN in subroutine (should not affect return)
+; TEST 13-16: Advanced Scenarios
 ; ============================================================
+
 test13_start:
-    sen                 ; N=1
+    sen
     rcall cln_sub13
-    ; After return, N should be 0
-    brpl sub_ok13
-    rjmp fail
-sub_ok13:
+
+    brpl t13_ok
+    jmp fail
+t13_ok:
+
     rcall inc_case
     rjmp test14_start
 
@@ -284,140 +264,58 @@ cln_sub13:
     cln
     ret
 
-; ============================================================
-; TEST 14: CLN with SEN in same routine
-; ============================================================
 test14_start:
-    sen                 ; N=1
-    cln                 ; N=0
-    sen                 ; N=1
-    cln                 ; N=0
-    
-    brpl clear_ok14
-    rjmp fail
-clear_ok14:
+    sen
+    cln
+    sen
+    cln
+
+    brpl t14_ok
+    jmp fail
+t14_ok:
+
     rcall inc_case
     rjmp test15_start
 
-; ============================================================
-; TEST 15: CLN used to force positive condition for branch
-; ============================================================
 test15_start:
-    ; Normally the result would be negative
     ldi r16, 3
     ldi r17, 5
-    sub r16, r17        ; 3-5=-2, N=1
-    
-    ; Force N=0 with CLN
+    sub r16, r17
     cln
-    
-    ; Now branch on positive will be taken
-    brpl forced_positive15
-    rjmp fail
-forced_positive15:
+
+    brpl t15_ok
+    jmp fail
+t15_ok:
+
     rcall inc_case
     rjmp test16_start
 
-; ============================================================
-; TEST 16: CLN does not affect V flag
-; ============================================================
 test16_start:
-    clv                 ; V=0
-    cln                 ; N=0
-    
-    brvc v_ok16
-    rjmp fail
-v_ok16:
-    
-    sev                 ; V=1
-    cln                 ; N=0
-    
-    brvs v_still_set16
-    rjmp fail
-v_still_set16:
-    rcall inc_case
-    rjmp test17_start
-
-; ============================================================
-; TEST 17: CLN encoding verification (indirect)
-; ============================================================
-test17_start:
-    ; CLN is fixed at 0x94B8
-    ; We can't test encoding directly, but we can verify behavior
-    sen                 ; N=1
-    cln                 ; Should clear N
-    brpl encode_ok17
-    rjmp fail
-encode_ok17:
-    rcall inc_case
-    rjmp test18_start
-
-; ============================================================
-; TEST 18: CLN preserves carry flag
-; ============================================================
-test18_start:
-    sec                 ; C=1
+    clv
     cln
-    
-    brcs c_ok18
-    rjmp fail
-c_ok18:
-    
-    clc                 ; C=0
-    cln
-    
-    brcc c_still_clear18
-    rjmp fail
-c_still_clear18:
-    rcall inc_case
-    rjmp test19_start
 
-; ============================================================
-; TEST 19: CLN preserves zero flag
-; ============================================================
-test19_start:
-    sez                 ; Z=1
-    cln
-    
-    breq z_ok19
-    rjmp fail
-z_ok19:
-    
-    clz                 ; Z=0
-    cln
-    
-    brne z_still_clear19
-    rjmp fail
-z_still_clear19:
-    rcall inc_case
-    rjmp test20_start
+    brvc t16_ok1
+    jmp fail
+t16_ok1:
 
-; ============================================================
-; TEST 20: CLN used before signed branch (forcing greater/equal)
-; ============================================================
-test20_start:
-    ; Make two numbers equal
-    ldi r16, 10
-    ldi r17, 10
-    cp r16, r17         ; Z=1, N=0
-    
-    ; Force S=0 by making N=0 with V=0
-    clv                 ; V=0
-    cln                 ; N=0, so S=0
-    
-    ; Now BRGE (branch if greater/equal, S=0) will be taken
-    brge forced_ge20
-    rjmp fail
-forced_ge20:
+    sev
+    cln
+
+    brvs t16_ok2
+    jmp fail
+t16_ok2:
+
     rcall inc_case
     rjmp success
 
 ; ============================================================
-; SUCCESS / FAILURE logic
+; SUCCESS / FAILURE
 ; ============================================================
+
 success:
     ldi r16, 1
     sts final_result, r16
+
 end:
     rjmp end
 

@@ -1,5 +1,5 @@
 ; ============================================================
-; IN (Load I/O Register) test suite
+; IN (Load I/O Register) test suite - FIXED VERSION
 ; ============================================================
 ; Tests that IN correctly:
 ; 1. Reads data from I/O space address (0x00-0x3F)
@@ -46,9 +46,12 @@ test1:
     ; Read it back
     in r17, PORTC
     cpi r17, 0xAA
-    brne fail
+    brne test1_fail
     rcall inc_case
     rjmp test1_done
+
+test1_fail:
+    rjmp fail
 
 test1_done:
 
@@ -61,7 +64,7 @@ test2:
     out DDRC, r16
     in r17, DDRC
     cpi r17, 0x55
-    brne fail
+    brne test2_fail
     
     ; Test PINC
     ; PINC is read-only, so we need to set through PORT/DDR
@@ -71,10 +74,13 @@ test2:
     nop                 ; Small delay
     in r17, PINC
     cpi r17, 0xFF
-    brne fail
+    brne test2_fail
     
     rcall inc_case
     rjmp test2_done
+
+test2_fail:
+    rjmp fail
 
 test2_done:
 
@@ -89,10 +95,13 @@ test3:
     ; Read back with IN
     in r17, GPIOR0
     cpi r17, 0x33
-    brne fail
+    brne test3_fail
     
     rcall inc_case
     rjmp test3_done
+
+test3_fail:
+    rjmp fail
 
 test3_done:
 
@@ -104,15 +113,18 @@ test4:
     out GPIOR1, r16
     in r17, GPIOR1
     cpi r17, 0xCC
-    brne fail
+    brne test4_fail
     
     rcall inc_case
     rjmp test4_done
 
+test4_fail:
+    rjmp fail
+
 test4_done:
 
 ; ============================================================
-; TEST 5: IN to all registers (R0-R31)
+; TEST 5: IN to all registers (R0-R31) - FIXED
 ; ============================================================
 test5:
     ; Write known value
@@ -121,19 +133,24 @@ test5:
     
     ; Read into different registers
     in r0, GPIOR0
-    cpi r0, 0x78
-    brne fail
+    ; Compare R0 by moving to upper register first
+    mov r16, r0
+    cpi r16, 0x78
+    brne test5_fail
     
     in r16, GPIOR0
     cpi r16, 0x78
-    brne fail
+    brne test5_fail
     
     in r31, GPIOR0
     cpi r31, 0x78
-    brne fail
+    brne test5_fail
     
     rcall inc_case
     rjmp test5_done
+
+test5_fail:
+    rjmp fail
 
 test5_done:
 
@@ -153,15 +170,18 @@ test6:
     in r16, GPIOR0
     
     ; Check all flags are still set
-    brcc fail           ; C should be 1
-    brne fail           ; Z should be 1
-    brmi fail           ; N should be 1
-    brvs fail           ; V should be 1
-    brhc fail           ; H should be 1
-    brtc fail           ; T should be 1
+    brcc test6_fail     ; C should be 1
+    brne test6_fail     ; Z should be 1
+    brmi test6_fail     ; N should be 1
+    brvs test6_fail     ; V should be 1
+    brhc test6_fail     ; H should be 1
+    brtc test6_fail     ; T should be 1
     
     rcall inc_case
     rjmp test6_done
+
+test6_fail:
+    rjmp fail
 
 test6_done:
 
@@ -180,26 +200,29 @@ test7:
     ; Check specific bits
     sbrc r16, 0         ; Test C
     rjmp c_ok7
-    rjmp fail
+    rjmp test7_fail
 c_ok7:
     sbrs r16, 1         ; Test Z (should be 0)
     rjmp z_ok7
-    rjmp fail
+    rjmp test7_fail
 z_ok7:
     sbrc r16, 2         ; Test N
     rjmp n_ok7
-    rjmp fail
+    rjmp test7_fail
 n_ok7:
     sbrs r16, 3         ; Test V (should be 0)
     rjmp v_ok7
-    rjmp fail
+    rjmp test7_fail
 v_ok7:
     sbrs r16, 7         ; Test I (should be 0)
     rjmp i_ok7
-    rjmp fail
+    rjmp test7_fail
 i_ok7:
     rcall inc_case
     rjmp test7_done
+
+test7_fail:
+    rjmp fail
 
 test7_done:
 
@@ -216,13 +239,16 @@ test8:
     ; Read back
     in r17, SPH
     cpi r17, 0x12
-    brne fail
+    brne test8_fail
     in r18, SPL
     cpi r18, 0x34
-    brne fail
+    brne test8_fail
     
     rcall inc_case
     rjmp test8_done
+
+test8_fail:
+    rjmp fail
 
 test8_done:
 
@@ -235,17 +261,20 @@ test9:
     out GPIOR0, r16
     in r17, GPIOR0
     cpi r17, 0x00
-    brne fail
+    brne test9_fail
     
     ; Test 0xFF
     ldi r16, 0xFF
     out GPIOR0, r16
     in r17, GPIOR0
     cpi r17, 0xFF
-    brne fail
+    brne test9_fail
     
     rcall inc_case
     rjmp test9_done
+
+test9_fail:
+    rjmp fail
 
 test9_done:
 
@@ -262,14 +291,17 @@ test10:
     in r19, GPIOR0
     
     cpi r17, 0xAA
-    brne fail
+    brne test10_fail
     cpi r18, 0xAA
-    brne fail
+    brne test10_fail
     cpi r19, 0xAA
-    brne fail
+    brne test10_fail
     
     rcall inc_case
     rjmp test10_done
+
+test10_fail:
+    rjmp fail
 
 test10_done:
 
@@ -283,15 +315,18 @@ test11:
     in r17, GPIOR0
     inc r17
     cpi r17, 0x56
-    brne fail
+    brne test11_fail
     
     ; Verify I/O unchanged
     in r18, GPIOR0
     cpi r18, 0x55
-    brne fail
+    brne test11_fail
     
     rcall inc_case
     rjmp test11_done
+
+test11_fail:
+    rjmp fail
 
 test11_done:
 
@@ -306,7 +341,7 @@ test12:
     ; Read back immediately
     in r17, GPIOR0
     cpi r17, 0x7E
-    brne fail
+    brne test12_fail
     
     ; Write new value
     ldi r16, 0x81
@@ -315,33 +350,39 @@ test12:
     ; Read again
     in r17, GPIOR0
     cpi r17, 0x81
-    brne fail
+    brne test12_fail
     
     rcall inc_case
     rjmp test12_done
 
+test12_fail:
+    rjmp fail
+
 test12_done:
 
 ; ============================================================
-; TEST 13: IN from all I/O addresses (using loop)
+; TEST 13: IN from all I/O addresses (using loop) - FIXED
 ; ============================================================
 test13:
-    ldi r16, 0x00
-    ldi r18, 0x00
-    ldi r19, 0x3F
+    ldi r16, 0x00      ; Value to write (R16 is valid for CPI)
+    ldi r18, 0x00      ; Counter (R18 is valid for CPI)
+    ldi r19, 0x3F      ; Limit (R19 is valid for CPI)
 test13_loop:
     out GPIOR0, r16
     in r17, GPIOR0
-    cp r16, r17
-    brne fail
+    cp r16, r17        ; Use CP instead of CPI (CP works with any registers)
+    brne test13_fail
     
     inc r16
     inc r18
-    cp r18, r19
+    cp r18, r19        ; CP with R18 and R19 (both allowed)
     brne test13_loop
     
     rcall inc_case
     rjmp test13_done
+
+test13_fail:
+    rjmp fail
 
 test13_done:
 
@@ -353,10 +394,13 @@ test14:
     out GPIOR0, r16
     in r16, GPIOR0
     cpi r16, 0x5A
-    brne fail
+    brne test14_fail
     
     rcall inc_case
     rjmp test14_done
+
+test14_fail:
+    rjmp fail
 
 test14_done:
 
@@ -374,12 +418,15 @@ test15:
     in r18, GPIOR1
     
     cpi r17, 0x11
-    brne fail
+    brne test15_fail
     cpi r18, 0x22
-    brne fail
+    brne test15_fail
     
     rcall inc_case
     rjmp test15_done
+
+test15_fail:
+    rjmp fail
 
 test15_done:
 
@@ -395,10 +442,13 @@ test16:
     ; Verify different
     in r18, GPIOR0
     cpi r18, 0x99
-    brne fail
+    brne test16_fail
     
     rcall inc_case
     rjmp test16_done
+
+test16_fail:
+    rjmp fail
 
 test16_done:
 
@@ -413,10 +463,13 @@ test17:
     ldi r18, 0x20
     add r17, r18
     cpi r17, 0x30
-    brne fail
+    brne test17_fail
     
     rcall inc_case
     rjmp test17_done
+
+test17_fail:
+    rjmp fail
 
 test17_done:
 
@@ -432,10 +485,13 @@ test18:
     ldi r17, 0x00
     pop r18
     cpi r18, 0xDE
-    brne fail
+    brne test18_fail
     
     rcall inc_case
     rjmp test18_done
+
+test18_fail:
+    rjmp fail
 
 test18_done:
 

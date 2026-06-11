@@ -1,30 +1,28 @@
 ; ============================================================
-; SUB instruction test suite for ATmega328P
+; SUB instruction test suite for ATmega328P (Fixed Flag Validation)
 ; SUB Rd, Rr  ->  Rd = Rd - Rr
-; Affected flags: H, S, V, N, Z, C
 ;
-; Flag definitions for SUB:
-;   C = set if unsigned borrow (Rd < Rr)
-;   Z = set if result == 0
-;   N = set if result bit 7 == 1
-;   V = set if signed overflow
-;       (pos - neg = neg) or (neg - pos = pos)
-;   S = N XOR V  (signed comparison flag)
-;   H = set if borrow from bit 3
-;       (i.e. low nibble of Rd < low nibble of Rr)
-;
-; test_case      -> SRAM location tracking current test
-; final_result   -> 1 = OK, -1 = FAIL
+; SREG Bit Map Reference:
+;   Bit 7: I (Interrupt)
+;   Bit 6: T (Bit Copy)
+;   Bit 5: H (Half Carry)
+;   Bit 4: S (Sign Bit, N XOR V)
+;   Bit 3: V (Two's Complement Overflow)
+;   Bit 2: N (Negative)
+;   Bit 1: Z (Zero)
+;   Bit 0: C (Carry)
 ; ============================================================
+
 ; -------------------------
 ; SRAM variables
 ; -------------------------
 .equ test_case    = 0x0100
 .equ final_result = 0x0101
-.equ stack_start = 0x08FF
+.equ stack_start  = 0x08FF
 .equ SREG         = 0x3F
 .equ SPH          = 0x3E
 .equ SPL          = 0x3D
+
 ; -------------------------
 ; Reset
 ; -------------------------
@@ -35,7 +33,7 @@ reset:
     ldi r16, 0xFF
     out SPL, r16
     ; init state
-    ldi r16, 0
+    ldi r16, 1
     sts test_case, r16
     ldi r16, 1
     sts final_result, r16
@@ -43,42 +41,32 @@ reset:
 ; ============================================================
 ; TEST 1: simple subtraction, positive result
 ; 30 - 10 = 20
-; C=0, Z=0, N=0, V=0, S=0, H=0
+; Expected SUB Flags: C=0, Z=0, N=0, V=0, S=0, H=0
 ; ============================================================
 test1:
     ldi r16, 30
     ldi r17, 10
+    sub r16, r17    
+    in r15, SREG    ; Capture pristine SUB flags before CPI alters them
 
-    ; Perform the operation
-    sub r16, r17
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail1
-    ; -- Z=0 --
-    breq fail1
-    ; -- N=0 --
-    brmi fail1
-    ; -- V=0 --
-    brvs fail1
-
-    ; -- S=0: read SREG bit 4 --
-    in r18, SREG
-    sbrc r18, 4
-    rjmp fail1
-    
-    ; -- H=0: read SREG bit 5 --
-    ; (in r18, SREG is not needed again since SREG hasn't changed,
-    ; but keeping it is harmless)
-    in r18, SREG
-    sbrc r18, 5
-    rjmp fail1
-
-    ; -- CHECK NUMERICAL RESULT LAST --
-    ; (This modifies the SREG, but we don't care anymore)
+    ; -- Validate Math Result --
     cpi r16, 20
-    brne fail1
+    brne fail1      ; Fail if math result is not exactly 20
 
-    ; -- TEST PASSED --
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C (bit 0) is 0. Fail if C=1 (no unsigned borrow)
+    rjmp fail1
+    sbrc r15, 1     ; Skip if Z (bit 1) is 0. Fail if Z=1 (result is not zero)
+    rjmp fail1
+    sbrc r15, 2     ; Skip if N (bit 2) is 0. Fail if N=1 (result is positive)
+    rjmp fail1
+    sbrc r15, 3     ; Skip if V (bit 3) is 0. Fail if V=1 (no signed overflow)
+    rjmp fail1
+    sbrc r15, 4     ; Skip if S (bit 4) is 0. Fail if S=1 (N^V = 0)
+    rjmp fail1
+    sbrc r15, 5     ; Skip if H (bit 5) is 0. Fail if H=1 (no low nibble borrow)
+    rjmp fail1
+
     rcall inc_case
     rjmp test2
 fail1: 
@@ -87,7 +75,7 @@ fail1:
 ; ============================================================
 ; TEST 2: result is zero
 ; 42 - 42 = 0
-; C=0, Z=1, N=0, V=0, S=0, H=0
+; Expected SUB Flags: C=0, Z=1, N=0, V=0, S=0, H=0
 ; ============================================================
 test2:
     ldi r16, 42
@@ -95,35 +83,26 @@ test2:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail2
-    
-    ; -- Z=1 --
-    brne fail2
-    
-    ; -- N=0 --
-    brmi fail2
-    
-    ; -- V=0 --
-    brvs fail2
-    
-    ; -- S=0 --
-    in r18, SREG
-    sbrc r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0
+    brne fail2      ; Fail if math result is not exactly 0
+
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C is 0. Fail if C=1 (no borrow needed)
     rjmp fail2
-    
-    ; -- H=0 --
-    in r18, SREG
-    sbrc r18, 5
+    sbrs r15, 1     ; Skip if Z is 1. Fail if Z=0 (result IS zero, Z must be 1)
+    rjmp fail2
+    sbrc r15, 2     ; Skip if N is 0. Fail if N=1 (0 is not negative)
+    rjmp fail2
+    sbrc r15, 3     ; Skip if V is 0. Fail if V=1 (cannot overflow)
+    rjmp fail2
+    sbrc r15, 4     ; Skip if S is 0. Fail if S=1 (N^V = 0)
+    rjmp fail2
+    sbrc r15, 5     ; Skip if H is 0. Fail if H=1 (low nibbles match)
     rjmp fail2
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0
-    brne fail2
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test3
 
@@ -133,7 +112,7 @@ fail2:
 ; ============================================================
 ; TEST 3: unsigned borrow, carry set
 ; 10 - 20 = 246 (mod 256)
-; C=1, Z=0, N=1, V=0, S=1, H=0
+; Expected SUB Flags: C=1, Z=0, N=1, V=0, S=1, H=0
 ; ============================================================
 test3:
     ldi r16, 10
@@ -141,37 +120,26 @@ test3:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=1 --
-    brcc fail3
-    
-    ; -- Z=0 --
-    breq fail3
-    
-    ; -- N=1 --
-    brpl fail3
-    
-    ; -- V=0 --
-    brvs fail3
-    
-    ; -- S=1 (N=1, V=0 -> S=1) --
-    in r18, SREG
-    sbrs r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 246
+    brne fail3      ; Fail if wraparound math result is not 246 (0xF6)
+
+    ; -- Validate Saved Flags (r15) --
+    sbrs r15, 0     ; Skip if C is 1. Fail if C=0 (10 < 20 requires an unsigned borrow)
     rjmp fail3
-    
-    ; -- H=0 --
-    ; (in r18, SREG not strictly needed again, but safe to keep)
-    in r18, SREG
-    sbrc r18, 5
+    sbrc r15, 1     ; Skip if Z is 0. Fail if Z=1 (246 != 0)
+    rjmp fail3
+    sbrs r15, 2     ; Skip if N is 1. Fail if N=0 (0xF6 has MSB=1, must be negative)
+    rjmp fail3
+    sbrc r15, 3     ; Skip if V is 0. Fail if V=1 (pos - pos staying within bounds is normal)
+    rjmp fail3
+    sbrs r15, 4     ; Skip if S is 1. Fail if S=0 (N^V = 1^0 = 1)
+    rjmp fail3
+    sbrc r15, 5     ; Skip if H is 0. Fail if H=1 (low nibble 0 >= 0, no lower borrow)
     rjmp fail3
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    ; (This modifies the SREG, but we don't care anymore)
-    cpi r16, 246
-    brne fail3
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test4
 
@@ -181,8 +149,7 @@ fail3:
 ; ============================================================
 ; TEST 4: half-carry (borrow from bit 3)
 ; 0x10 - 0x01 = 0x0F
-; low nibbles: 0x0 - 0x1 borrows from bit3 -> H=1
-; C=0, Z=0, N=0, V=0, S=0, H=1
+; Expected SUB Flags: C=0, Z=0, N=0, V=0, S=0, H=1
 ; ============================================================
 test4:
     ldi r16, 0x10
@@ -190,35 +157,26 @@ test4:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail4
-    
-    ; -- Z=0 --
-    breq fail4
-    
-    ; -- N=0 --
-    brmi fail4
-    
-    ; -- V=0 --
-    brvs fail4
-    
-    ; -- S=0 --
-    in r18, SREG
-    sbrc r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0x0F
+    brne fail4      ; Fail if math result is not 0x0F
+
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C is 0. Fail if C=1 (0x10 >= 0x01 overall)
     rjmp fail4
-    
-    ; -- H=1 --
-    in r18, SREG
-    sbrs r18, 5
+    sbrc r15, 1     ; Skip if Z is 0. Fail if Z=1 (0x0F != 0)
+    rjmp fail4
+    sbrc r15, 2     ; Skip if N is 0. Fail if N=1 (MSB of 0x0F is 0)
+    rjmp fail4
+    sbrc r15, 3     ; Skip if V is 0. Fail if V=1 (no signed overflow)
+    rjmp fail4
+    sbrc r15, 4     ; Skip if S is 0. Fail if S=1 (N^V = 0)
+    rjmp fail4
+    sbrs r15, 5     ; Skip if H is 1. Fail if H=0 (low nibble 0 minus 1 forces a nibble borrow)
     rjmp fail4
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0x0F
-    brne fail4
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test5
 
@@ -227,8 +185,8 @@ fail4:
 
 ; ============================================================
 ; TEST 5: signed overflow, positive - negative = negative
-; 0x70 (112) - 0x90 (144 unsigned / -112 signed) = 0xE0
-; C=1, Z=0, N=1, V=1, S=0 (N^V=1^1), H=0
+; 0x70 (112) - 0x90 (-112 signed) = 0xE0 (-32 signed)
+; Expected SUB Flags: C=1, Z=0, N=1, V=1, S=0, H=0
 ; ============================================================
 test5:
     ldi r16, 0x70
@@ -236,35 +194,26 @@ test5:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=1 --
-    brcc fail5
-    
-    ; -- Z=0 --
-    breq fail5
-    
-    ; -- N=1 --
-    brpl fail5
-    
-    ; -- V=1 --
-    brvc fail5
-    
-    ; -- S=0 (N=1, V=1 -> S=0) --
-    in r18, SREG
-    sbrc r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0xE0
+    brne fail5      ; Fail if math result is not 0xE0
+
+    ; -- Validate Saved Flags (r15) --
+    sbrs r15, 0     ; Skip if C is 1. Fail if C=0 (0x70 < 0x90 unsigned)
     rjmp fail5
-    
-    ; -- H=0 --
-    in r18, SREG
-    sbrc r18, 5
+    sbrc r15, 1     ; Skip if Z is 0. Fail if Z=1 (0xE0 != 0)
+    rjmp fail5
+    sbrs r15, 2     ; Skip if N is 1. Fail if N=0 (0xE0 has MSB=1)
+    rjmp fail5
+    sbrs r15, 3     ; Skip if V is 1. Fail if V=0 (pos - neg = neg is a signed overflow!)
+    rjmp fail5
+    sbrc r15, 4     ; Skip if S is 0. Fail if S=1 (N^V = 1^1 = 0)
+    rjmp fail5
+    sbrc r15, 5     ; Skip if H is 0. Fail if H=1 (low nibble 0 - 0 = 0)
     rjmp fail5
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0xE0
-    brne fail5
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test6
 
@@ -274,8 +223,7 @@ fail5:
 ; ============================================================
 ; TEST 6: signed overflow, negative - positive = positive
 ; 0x80 (-128) - 0x01 (1) = 0x7F (127)
-; True signed result = -129, overflows -> V=1
-; C=0, Z=0, N=0, V=1, S=1 (N^V=0^1), H=0
+; Expected SUB Flags: C=0, Z=0, N=0, V=1, S=1, H=1
 ; ============================================================
 test6:
     ldi r16, 0x80
@@ -283,35 +231,26 @@ test6:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail6
-    
-    ; -- Z=0 --
-    breq fail6
-    
-    ; -- N=0 --
-    brmi fail6
-    
-    ; -- V=1 --
-    brvc fail6
-    
-    ; -- S=1 (N=0, V=1 -> S=1) --
-    in r18, SREG
-    sbrs r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0x7F
+    brne fail6      ; Fail if math result is not 0x7F
+
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C is 0. Fail if C=1 (0x80 >= 0x01 unsigned)
     rjmp fail6
-    
-    ; -- H=0 --
-    in r18, SREG
-    sbrc r18, 5
+    sbrc r15, 1     ; Skip if Z is 0. Fail if Z=1 (0x7F != 0)
+    rjmp fail6
+    sbrc r15, 2     ; Skip if N is 0. Fail if N=1 (0x7F has MSB=0)
+    rjmp fail6
+    sbrs r15, 3     ; Skip if V is 1. Fail if V=0 (neg - pos = pos is a signed overflow!)
+    rjmp fail6
+    sbrs r15, 4     ; Skip if S is 1. Fail if S=0 (N^V = 0^1 = 1)
+    rjmp fail6
+    sbrs r15, 5     ; Skip if H is 0. Fail if H=1 (Evaluated macro-state has H clean)
     rjmp fail6
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0x7F
-    brne fail6
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test7
 
@@ -321,7 +260,7 @@ fail6:
 ; ============================================================
 ; TEST 7: subtract from self (all ones scenario)
 ; 0xFF - 0xFF = 0
-; C=0, Z=1, N=0, V=0, S=0, H=0
+; Expected SUB Flags: C=0, Z=1, N=0, V=0, S=0, H=0
 ; ============================================================
 test7:
     ldi r16, 0xFF
@@ -329,35 +268,26 @@ test7:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail7
-    
-    ; -- Z=1 --
-    brne fail7
-    
-    ; -- N=0 --
-    brmi fail7
-    
-    ; -- V=0 --
-    brvs fail7
-    
-    ; -- S=0 --
-    in r18, SREG
-    sbrc r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0
+    brne fail7      ; Fail if math result is not exactly 0
+
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C is 0. Fail if C=1
     rjmp fail7
-    
-    ; -- H=0 --
-    in r18, SREG
-    sbrc r18, 5
+    sbrs r15, 1     ; Skip if Z is 1. Fail if Z=0
+    rjmp fail7
+    sbrc r15, 2     ; Skip if N is 0. Fail if N=1
+    rjmp fail7
+    sbrc r15, 3     ; Skip if V is 0. Fail if V=1
+    rjmp fail7
+    sbrc r15, 4     ; Skip if S is 0. Fail if S=1
+    rjmp fail7
+    sbrc r15, 5     ; Skip if H is 0. Fail if H=1
     rjmp fail7
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0
-    brne fail7
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp test8
 
@@ -367,8 +297,7 @@ fail7:
 ; ============================================================
 ; TEST 8: half-carry with borrow chain
 ; 0x20 - 0x19 = 0x07
-; low nibbles: 0x0 - 0x9 -> borrows from bit3 -> H=1
-; C=0, Z=0, N=0, V=0, S=0, H=1
+; Expected SUB Flags: C=0, Z=0, N=0, V=0, S=0, H=1
 ; ============================================================
 test8:
     ldi r16, 0x20
@@ -376,35 +305,26 @@ test8:
     
     ; Perform the operation
     sub r16, r17
-    
-    ; -- CHECK FLAGS IMMEDIATELY --
-    ; -- C=0 --
-    brcs fail8
-    
-    ; -- Z=0 --
-    breq fail8
-    
-    ; -- N=0 --
-    brmi fail8
-    
-    ; -- V=0 --
-    brvs fail8
-    
-    ; -- S=0 --
-    in r18, SREG
-    sbrc r18, 4
+    in r15, SREG
+
+    ; -- Validate Math Result --
+    cpi r16, 0x07
+    brne fail8      ; Fail if math result is not 0x07
+
+    ; -- Validate Saved Flags (r15) --
+    sbrc r15, 0     ; Skip if C is 0. Fail if C=1 (0x20 >= 0x19 overall)
     rjmp fail8
-    
-    ; -- H=1 --
-    in r18, SREG
-    sbrs r18, 5
+    sbrc r15, 1     ; Skip if Z is 0. Fail if Z=1 (0x07 != 0)
+    rjmp fail8
+    sbrc r15, 2     ; Skip if N is 0. Fail if N=1 (MSB of 0x07 is 0)
+    rjmp fail8
+    sbrc r15, 3     ; Skip if V is 0. Fail if V=1
+    rjmp fail8
+    sbrc r15, 4     ; Skip if S is 0. Fail if S=1
+    rjmp fail8
+    sbrs r15, 5     ; Skip if H is 1. Fail if H=0 (low nibble 0 minus 9 requires a borrow)
     rjmp fail8
 
-    ; -- CHECK NUMERICAL RESULT LAST --
-    cpi r16, 0x07
-    brne fail8
-    
-    ; -- TEST PASSED --
     rcall inc_case
     rjmp success
 

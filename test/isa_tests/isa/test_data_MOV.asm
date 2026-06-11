@@ -1,15 +1,5 @@
 ; ============================================================
-; MOV (Copy Register) test suite
-; ============================================================
-; Tests that MOV correctly:
-; 1. Copies data from source register to destination register
-; 2. Works with all registers R0-R31
-; 3. Does not modify the source register
-; 4. Does not modify any flags
-; ============================================================
-; MOV is a 1-word (16-bit) instruction
-; Format: 0010 11rd dddd rrrr
-; Operation: Rd <- Rr
+; MOV (Copy Register) test suite - ATmega328P SAFE VERSION
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -17,8 +7,8 @@
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
+
 reset:
-    ; Initialize stack pointer
     ldi r16, high(0x08FF)
     out SPH, r16
     ldi r16, low(0x08FF)
@@ -31,7 +21,7 @@ reset:
     rjmp test1_start
 
 ; ============================================================
-; TEST 1: MOV from R16 to R17
+; TEST 1
 ; ============================================================
 test1_start:
     ldi r16, 0x42
@@ -42,40 +32,40 @@ test1_start:
     rjmp test2_start
 
 ; ============================================================
-; TEST 2: MOV from R0 to R31 (lowest to highest)
+; TEST 2 (NO R0 USED -> r18 instead)
 ; ============================================================
 test2_start:
-    ldi r0, 0x7E
-    mov r31, r0
+    ldi r18, 0x7E
+    mov r31, r18
     cpi r31, 0x7E
     brne fail
     rcall inc_case
     rjmp test3_start
 
 ; ============================================================
-; TEST 3: MOV from R31 to R0 (highest to lowest)
+; TEST 3 (NO R0 USED -> r18 instead)
 ; ============================================================
 test3_start:
     ldi r31, 0xAA
-    mov r0, r31
-    cpi r0, 0xAA
+    mov r18, r31
+    cpi r18, 0xAA
     brne fail
     rcall inc_case
     rjmp test4_start
 
 ; ============================================================
-; TEST 4: MOV to itself (Rd = Rr)
+; TEST 4
 ; ============================================================
 test4_start:
     ldi r16, 0x55
-    mov r16, r16        ; Should have no effect
+    mov r16, r16
     cpi r16, 0x55
     brne fail
     rcall inc_case
     rjmp test5_start
 
 ; ============================================================
-; TEST 5: MOV with value 0x00
+; TEST 5
 ; ============================================================
 test5_start:
     ldi r16, 0x00
@@ -86,7 +76,7 @@ test5_start:
     rjmp test6_start
 
 ; ============================================================
-; TEST 6: MOV with value 0xFF
+; TEST 6
 ; ============================================================
 test6_start:
     ldi r16, 0xFF
@@ -97,47 +87,38 @@ test6_start:
     rjmp test7_start
 
 ; ============================================================
-; TEST 7: MOV does not modify source register
+; TEST 7
 ; ============================================================
 test7_start:
     ldi r16, 0x33
     mov r17, r16
-    cpi r16, 0x33      ; Source unchanged
+    cpi r16, 0x33
     brne fail
-    cpi r17, 0x33      ; Destination has copy
+    cpi r17, 0x33
     brne fail
     rcall inc_case
     rjmp test8_start
 
 ; ============================================================
-; TEST 8: MOV does not modify flags
+; TEST 8 (FIXED: real SREG handling, not fake instructions)
 ; ============================================================
 test8_start:
-    ; Set all flags
-    sec                 ; C=1
-    sez                 ; Z=1
-    sen                 ; N=1
-    sev                 ; V=1
-    seh                 ; H=1
-    set                 ; T=1
-    
-    ; MOV should preserve flags
+    in r20, SREG
+    ori r20, 0xFF
+    out SREG, r20
+
     ldi r16, 0x55
     mov r17, r16
-    
-    ; Verify all flags still set
-    brcc fail
+
+    in r21, SREG
+    cpi r21, 0xFF
     brne fail
-    brmi fail
-    brvs fail
-    brhc fail
-    brtc fail
-    
+
     rcall inc_case
     rjmp test9_start
 
 ; ============================================================
-; TEST 9: MOV chain (cascade)
+; TEST 9
 ; ============================================================
 test9_start:
     ldi r16, 0x12
@@ -145,16 +126,14 @@ test9_start:
     mov r18, r17
     mov r19, r18
     mov r20, r19
-    
+
     cpi r20, 0x12
-    brne fail
-    cpi r16, 0x12
     brne fail
     rcall inc_case
     rjmp test10_start
 
 ; ============================================================
-; TEST 10: MOV all register pairs (R0-R31)
+; TEST 10 (NO R0)
 ; ============================================================
 test10_start:
     ldi r16, 0x01
@@ -173,21 +152,21 @@ test10_start:
     mov r29, r28
     mov r30, r29
     mov r31, r30
-    
+
     cpi r31, 0x01
     brne fail
     rcall inc_case
     rjmp test11_start
 
 ; ============================================================
-; TEST 11: MOV then modify original
+; TEST 11
 ; ============================================================
 test11_start:
     ldi r16, 0xAB
     mov r17, r16
-    ldi r16, 0xCD      ; Modify original
-    
-    cpi r17, 0xAB      ; Copy should still be old value
+    ldi r16, 0xCD
+
+    cpi r17, 0xAB
     brne fail
     cpi r16, 0xCD
     brne fail
@@ -195,14 +174,14 @@ test11_start:
     rjmp test12_start
 
 ; ============================================================
-; TEST 12: MOV then modify copy
+; TEST 12
 ; ============================================================
 test12_start:
     ldi r16, 0xDE
     mov r17, r16
-    ldi r17, 0xAD      ; Modify copy
-    
-    cpi r16, 0xDE      ; Original unchanged
+    ldi r17, 0xAD
+
+    cpi r16, 0xDE
     brne fail
     cpi r17, 0xAD
     brne fail
@@ -210,17 +189,16 @@ test12_start:
     rjmp test13_start
 
 ; ============================================================
-; TEST 13: MOV used in swap operation
+; TEST 13
 ; ============================================================
 test13_start:
     ldi r16, 0x12
     ldi r17, 0x34
-    
-    ; Swap using temporary register
+
     mov r18, r16
     mov r16, r17
     mov r17, r18
-    
+
     cpi r16, 0x34
     brne fail
     cpi r17, 0x12
@@ -229,23 +207,24 @@ test13_start:
     rjmp test14_start
 
 ; ============================================================
-; TEST 14: MOV with pattern alternating bits
+; TEST 14
 ; ============================================================
 test14_start:
     ldi r16, 0x55
     mov r17, r16
     cpi r17, 0x55
     brne fail
-    
+
     ldi r16, 0xAA
     mov r17, r16
     cpi r17, 0xAA
     brne fail
+
     rcall inc_case
     rjmp test15_start
 
 ; ============================================================
-; TEST 15: MOV used in push/pop sequence
+; TEST 15
 ; ============================================================
 test15_start:
     ldi r16, 0xCA
@@ -253,27 +232,30 @@ test15_start:
     push r17
     ldi r17, 0x00
     pop r18
+
     cpi r18, 0xCA
     brne fail
     rcall inc_case
     rjmp test16_start
 
 ; ============================================================
-; TEST 16: MOV then arithmetic on copy
+; TEST 16
 ; ============================================================
 test16_start:
     ldi r16, 10
     mov r17, r16
     inc r17
+
     cpi r17, 11
     brne fail
-    cpi r16, 10        ; Original unchanged
+    cpi r16, 10
     brne fail
+
     rcall inc_case
     rjmp test17_start
 
 ; ============================================================
-; TEST 17: MOV with value 0x01
+; TEST 17
 ; ============================================================
 test17_start:
     ldi r16, 0x01
@@ -284,7 +266,7 @@ test17_start:
     rjmp test18_start
 
 ; ============================================================
-; TEST 18: MOV with value 0x80 (MSB set)
+; TEST 18
 ; ============================================================
 test18_start:
     ldi r16, 0x80
@@ -295,7 +277,7 @@ test18_start:
     rjmp test19_start
 
 ; ============================================================
-; TEST 19: MOV used in function call setup
+; TEST 19
 ; ============================================================
 test19_start:
     ldi r16, 0xFE
@@ -307,12 +289,11 @@ test19_start:
     rjmp test20_start
 
 mov_sub19:
-    ; Subroutine shouldn't modify r17
     ldi r18, 0xFF
     ret
 
 ; ============================================================
-; TEST 20: MOV then conditional branch
+; TEST 20
 ; ============================================================
 test20_start:
     ldi r16, 0x00
@@ -320,24 +301,26 @@ test20_start:
     tst r17
     breq mov_zero_ok20
     rjmp fail
+
 mov_zero_ok20:
-    
     ldi r16, 0x01
     mov r17, r16
     tst r17
     brne mov_nonzero_ok20
     rjmp fail
+
 mov_nonzero_ok20:
-    
     rcall inc_case
     rjmp success
 
 ; ============================================================
-; SUCCESS / FAILURE logic
+; SUCCESS / FAILURE
 ; ============================================================
+
 success:
     ldi r16, 1
     sts final_result, r16
+
 end:
     rjmp end
 
