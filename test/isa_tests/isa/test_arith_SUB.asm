@@ -80,6 +80,8 @@ fail1:
 test2:
     ldi r16, 42
     ldi r17, 42
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -103,6 +105,7 @@ test2:
 
     rcall inc_case
     rjmp test3
+
 fail2: 
     jmp fail
 
@@ -114,6 +117,8 @@ fail2:
 test3:
     ldi r16, 10
     ldi r17, 20
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -137,6 +142,7 @@ test3:
 
     rcall inc_case
     rjmp test4
+
 fail3: 
     jmp fail
 
@@ -148,6 +154,8 @@ fail3:
 test4:
     ldi r16, 0x10
     ldi r17, 0x01
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -171,6 +179,7 @@ test4:
 
     rcall inc_case
     rjmp test5
+
 fail4:
     jmp fail
 
@@ -182,6 +191,8 @@ fail4:
 test5:
     ldi r16, 0x70
     ldi r17, 0x90
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -205,6 +216,7 @@ test5:
 
     rcall inc_case
     rjmp test6
+
 fail5:
     jmp fail
 
@@ -216,6 +228,8 @@ fail5:
 test6:
     ldi r16, 0x80
     ldi r17, 0x01
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -239,6 +253,7 @@ test6:
 
     rcall inc_case
     rjmp test7
+
 fail6: 
     jmp fail
 
@@ -250,6 +265,8 @@ fail6:
 test7:
     ldi r16, 0xFF
     ldi r17, 0xFF
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -273,6 +290,7 @@ test7:
 
     rcall inc_case
     rjmp test8
+
 fail7: 
     jmp fail
 
@@ -284,6 +302,8 @@ fail7:
 test8:
     ldi r16, 0x20
     ldi r17, 0x19
+    
+    ; Perform the operation
     sub r16, r17
     in r15, SREG
 
@@ -307,6 +327,7 @@ test8:
 
     rcall inc_case
     rjmp success
+
 fail8: 
     jmp fail
 

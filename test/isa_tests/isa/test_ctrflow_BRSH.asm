@@ -1,13 +1,6 @@
 ; ============================================================
 ; BRSH (Branch if Same or Higher - Unsigned) test suite
-; ============================================================
-; Tests that BRSH correctly branches when C flag = 0
-; which means: Rd >= Rr (unsigned comparison)
-; ============================================================
-; BRSH = Branch if Same or Higher (unsigned)
-; Equivalent to BRBC 0 (Branch if Bit Clear, C flag)
-; Also known as BRCC (Branch if Carry Clear)
-; C=0 when Rd >= Rr (no borrow occurs)
+; Modified so every BRSH target stays within ±63 words
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -27,210 +20,222 @@ reset:
 
 ; ============================================================
 ; TEST 1: Branch if Rd > Rr (unsigned)
-; 10 > 5, so C=0, should branch
 ; ============================================================
 test1:
     ldi r16, 10
     ldi r17, 5
-    cp r16, r17         ; 10 - 5 = no borrow, C=0
-    
-    brsh branch1_ok     ; C=0, so branch
+    cp r16, r17
+
+    brsh branch1_ok
     rjmp fail
 branch1_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 2: Branch if Rd == Rr (unsigned)
-; 5 == 5, so C=0, should branch
 ; ============================================================
 test2:
     ldi r16, 5
     ldi r17, 5
-    cp r16, r17         ; 5 - 5 = 0, no borrow, C=0
-    
-    brsh branch2_ok     ; C=0, so branch
+    cp r16, r17
+
+    brsh branch2_ok
     rjmp fail
 branch2_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 3: Do NOT Branch if Rd < Rr (unsigned)
-; 5 < 10, so C=1, should NOT branch
 ; ============================================================
 test3:
     ldi r16, 5
     ldi r17, 10
-    cp r16, r17         ; 5 - 10 = borrow, C=1
-    
-    brsh fail           ; C=1, so NO branch
+    cp r16, r17
+
+    brsh test3_fail
     rcall inc_case
+    rjmp test3_done
+
+test3_fail:
+    rjmp fail
+
+test3_done:
 
 ; ============================================================
 ; TEST 4: Branch with CPI (Rd > Rr)
-; 200 > 100, so C=0, should branch
 ; ============================================================
 test4:
     ldi r16, 200
-    cpi r16, 100        ; 200 - 100 = no borrow, C=0
-    
-    brsh branch4_ok     ; C=0, so branch
+    cpi r16, 100
+
+    brsh branch4_ok
     rjmp fail
 branch4_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 5: Branch with CPI (Rd == Rr)
-; 150 == 150, so C=0, should branch
 ; ============================================================
 test5:
     ldi r16, 150
-    cpi r16, 150        ; 150 - 150 = 0, no borrow, C=0
-    
-    brsh branch5_ok     ; C=0, so branch
+    cpi r16, 150
+
+    brsh branch5_ok
     rjmp fail
 branch5_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 6: Do NOT Branch with CPI (Rd < Rr)
-; 50 < 100, so C=1, should NOT branch
 ; ============================================================
 test6:
     ldi r16, 50
-    cpi r16, 100        ; 50 - 100 = borrow, C=1
-    
-    brsh fail           ; C=1, so NO branch
+    cpi r16, 100
+
+    brsh test6_fail
     rcall inc_case
+    rjmp test6_done
+
+test6_fail:
+    rjmp fail
+
+test6_done:
 
 ; ============================================================
 ; TEST 7: Branch with SUB that doesn't cause borrow
-; 10 - 3 = 7, no borrow, C=0, should branch
 ; ============================================================
 test7:
     ldi r16, 10
     ldi r17, 3
-    sub r16, r17        ; 10 - 3 = 7, no borrow, C=0
-    
-    brsh branch7_ok     ; C=0, so branch
+    sub r16, r17
+
+    brsh branch7_ok
     rjmp fail
 branch7_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 8: Do NOT Branch with SUB that causes borrow
-; 3 - 10 = borrow, C=1, should NOT branch
 ; ============================================================
 test8:
     ldi r16, 3
     ldi r17, 10
-    sub r16, r17        ; 3 - 10 = borrow, C=1
-    
-    brsh fail           ; C=1, so NO branch
+    sub r16, r17
+
+    brsh test8_fail
     rcall inc_case
+    rjmp test8_done
+
+test8_fail:
+    rjmp fail
+
+test8_done:
 
 ; ============================================================
 ; TEST 9: Branch with maximum values (Rd == Rr)
-; 255 == 255, no borrow, C=0, should branch
 ; ============================================================
 test9:
     ldi r16, 255
     ldi r17, 255
-    cp r16, r17         ; 255 - 255 = 0, C=0
-    
-    brsh branch9_ok     ; C=0, so branch
+    cp r16, r17
+
+    brsh branch9_ok
     rjmp fail
 branch9_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 10: Branch with Rd > Rr (boundary)
-; 255 > 254, no borrow, C=0, should branch
 ; ============================================================
 test10:
     ldi r16, 255
     ldi r17, 254
-    cp r16, r17         ; 255 - 254 = 1, no borrow, C=0
-    
-    brsh branch10_ok    ; C=0, so branch
+    cp r16, r17
+
+    brsh branch10_ok
     rjmp fail
 branch10_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 11: Branch with ADD that doesn't set C
-; ADD with no carry, C=0, should branch
 ; ============================================================
 test11:
     ldi r16, 10
     ldi r17, 20
-    add r16, r17        ; 30, C=0
-    
-    brsh branch11_ok    ; C=0, so branch
+    add r16, r17
+
+    brsh branch11_ok
     rjmp fail
 branch11_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 12: Do NOT Branch with ADD that sets C
-; ADD with carry, C=1, should NOT branch
 ; ============================================================
 test12:
     ldi r16, 0xFF
     ldi r17, 0x01
-    add r16, r17        ; 0x100, C=1
-    
-    brsh fail           ; C=1, so NO branch
+    add r16, r17
+
+    brsh test12_fail
     rcall inc_case
+    rjmp test12_done
+
+test12_fail:
+    rjmp fail
+
+test12_done:
 
 ; ============================================================
 ; TEST 13: Branch with ADIW (unsigned word addition)
-; ADIW with no carry, C=0, should branch
 ; ============================================================
 test13:
     ldi r24, 0xF0
     ldi r25, 0x00
-    adiw r24, 16        ; 0x00F0 + 16 = 0x0100, no carry out of bit 15, C=0
-    
-    brsh branch13_ok    ; C=0, so branch
+    adiw r24, 16
+
+    brsh branch13_ok
     rjmp fail
 branch13_ok:
     rcall inc_case
 
 ; ============================================================
-; TEST 14: Branch after CLC (explicitly clear carry)
-; C=0, should branch
+; TEST 14: Branch after CLC
 ; ============================================================
 test14:
-    clc                 ; C=0
-    
-    brsh branch14_ok    ; C=0, so branch
+    clc
+
+    brsh branch14_ok
     rjmp fail
 branch14_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 15: Branch with LSL that doesn't set C
-; LSL with no carry out, C=0, should branch
 ; ============================================================
 test15:
     ldi r16, 0x40
-    lsl r16             ; 0x40 << 1 = 0x80, bit 7 out = 0, C=0
-    
-    brsh branch15_ok    ; C=0, so branch
+    lsl r16
+
+    brsh branch15_ok
     rjmp fail
 branch15_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 16: Do NOT Branch with LSL that sets C
-; LSL with carry out, C=1, should NOT branch
 ; ============================================================
 test16:
     ldi r16, 0x80
-    lsl r16             ; 0x80 << 1 = 0x00, bit 7 out = 1, C=1
-    
-    brsh fail           ; C=1, so NO branch
+    lsl r16
+
+    brsh test16_fail
     rcall inc_case
+    rjmp success
+
+test16_fail:
+    rjmp fail
 
 ; ============================================================
 ; SUCCESS / FAILURE logic
@@ -238,6 +243,7 @@ test16:
 success:
     ldi r16, 1
     sts final_result, r16
+
 end:
     rjmp end
 

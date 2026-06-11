@@ -1,5 +1,5 @@
 ; ============================================================
-; RCALL (Relative Call) test suite - WITH LOCAL TRAMPOLINES
+; RCALL (Relative Call) test suite - CORRECTED
 ; ============================================================
 
 .equ test_case = 0x0100
@@ -29,28 +29,39 @@ fail:
     rjmp end
 
 ; ============================================================
-; TEST 1 with LOCAL TRAMPOLINE
+; TEST COUNTER INCREMENT HELPER
+; ============================================================
+inc_case_generic:
+    push r16            ; Preserve r16 to avoid clobbering test states
+    lds r16, test_case
+    inc r16
+    sts test_case, r16
+    pop r16
+    ret
+
+; ============================================================
+; TEST 1
 ; ============================================================
 test1_fail:
-    rjmp fail          ; Local trampoline to global fail
+    rjmp fail
 
 test1_start:
     ldi r16, 0xAA
     rcall sub1
     cpi r16, 0xBB
-    brne test1_fail    ; Branch to local trampoline
-    rcall inc1
+    brne test1_fail    
+    rjmp inc1          ; FIXED: Use rjmp to prevent stack accumulation
 
 sub1:
     ldi r16, 0xBB
     ret
 
 inc1:
-    rcall test2_start
-    rjmp test1_fail
+    rcall inc_case_generic ; FIXED: Update the SRAM counter
+    rjmp test2_start       ; FIXED: Jump cleanly to next test
 
 ; ============================================================
-; TEST 2 with LOCAL TRAMPOLINE
+; TEST 2
 ; ============================================================
 test2_fail:
     rjmp fail
@@ -60,7 +71,7 @@ test2_start:
     rcall outer2
     cpi r17, 0x33
     brne test2_fail
-    rcall inc2
+    rjmp inc2
 
 outer2:
     ldi r17, 0x22
@@ -72,11 +83,11 @@ inner2:
     ret
 
 inc2:
-    rcall test3_start
-    rjmp test2_fail
+    rcall inc_case_generic
+    rjmp test3_start
 
 ; ============================================================
-; TEST 3 with LOCAL TRAMPOLINE
+; TEST 3
 ; ============================================================
 test3_fail:
     rjmp fail
@@ -95,7 +106,7 @@ test3_start:
     cpi r20, 3
     brne test3_fail
 
-    rcall inc3
+    rjmp inc3
 
 pushpop3:
     push r18
@@ -112,11 +123,11 @@ pushpop3:
     ret
 
 inc3:
-    rcall test4_start
-    rjmp test3_fail
+    rcall inc_case_generic
+    rjmp test4_start
 
 ; ============================================================
-; TEST 4 with LOCAL TRAMPOLINE
+; TEST 4
 ; ============================================================
 test4_fail:
     rjmp fail
@@ -135,17 +146,17 @@ test4_start:
     cp r22, r24
     brne test4_fail
 
-    rcall inc4
+    rjmp inc4
 
 sp4:
     ret
 
 inc4:
-    rcall test5_start
-    rjmp test4_fail
+    rcall inc_case_generic
+    rjmp test5_start
 
 ; ============================================================
-; TEST 5 with LOCAL TRAMPOLINE
+; TEST 5
 ; ============================================================
 test5_fail:
     rjmp fail
@@ -155,18 +166,18 @@ test5_start:
     rcall near5
     cpi r27, 0x42
     brne test5_fail
-    rcall inc5
+    rjmp inc5
 
 near5:
     ldi r27, 0x42
     ret
 
 inc5:
-    rcall test6_start
-    rjmp test5_fail
+    rcall inc_case_generic
+    rjmp test6_start
 
 ; ============================================================
-; TEST 6 with LOCAL TRAMPOLINE
+; TEST 6
 ; ============================================================
 test6_fail:
     rjmp fail
@@ -179,18 +190,18 @@ test6_start:
 
     cpi r28, 3
     brne test6_fail
-    rcall inc6
+    rjmp inc6
 
 c6:
     inc r28
     ret
 
 inc6:
-    rcall test7_start
-    rjmp test6_fail
+    rcall inc_case_generic
+    rjmp test7_start
 
 ; ============================================================
-; TEST 7 with LOCAL TRAMPOLINE
+; TEST 7
 ; ============================================================
 test7_fail:
     rjmp fail
@@ -201,7 +212,7 @@ test7_start:
 
     cpi r29, 0xAA
     brne test7_fail
-    rcall inc7
+    rjmp inc7
 
 frame7:
     push r16
@@ -215,11 +226,11 @@ frame7:
     ret
 
 inc7:
-    rcall test8_start
-    rjmp test7_fail
+    rcall inc_case_generic
+    rjmp test8_start
 
 ; ============================================================
-; TEST 8 with LOCAL TRAMPOLINE
+; TEST 8
 ; ============================================================
 test8_fail:
     rjmp fail
@@ -231,22 +242,22 @@ test8_start:
 loop8:
     rcall sub8
     dec r31
-    brne loop8          ; This branch is fine (target is nearby)
+    brne loop8          
     
     cpi r30, 5
     brne test8_fail
-    rcall inc8
+    rjmp inc8
 
 sub8:
     inc r30
     ret
 
 inc8:
-    rcall test9_start
-    rjmp test8_fail
+    rcall inc_case_generic
+    rjmp test9_start
 
 ; ============================================================
-; TEST 9 with LOCAL TRAMPOLINE (and LDI fix)
+; TEST 9
 ; ============================================================
 test9_fail:
     rjmp fail
@@ -256,9 +267,9 @@ test9_start:
     mov r1, r16
     rcall sub9
     mov r16, r1
-    cpi r16, 0x55
+    cpi r16, 0xFF       ; FIXED: Compare to 0xFF (0x55 + 0xAA)
     brne test9_fail
-    rcall inc9
+    rjmp inc9
 
 sub9:
     ldi r17, 0xAA
@@ -266,11 +277,11 @@ sub9:
     ret
 
 inc9:
-    rcall test10_start
-    rjmp test9_fail
+    rcall inc_case_generic
+    rjmp test10_start
 
 ; ============================================================
-; TEST 10 with LOCAL TRAMPOLINE
+; TEST 10
 ; ============================================================
 test10_fail:
     rjmp fail
@@ -280,7 +291,7 @@ test10_start:
     rcall level1_10
     cpi r16, 5
     brne test10_fail
-    rcall inc10
+    rjmp inc10
 
 level1_10:
     inc r16
@@ -291,11 +302,11 @@ done10:
     ret
 
 inc10:
-    rcall test11_start
-    rjmp test10_fail
+    rcall inc_case_generic
+    rjmp test11_start
 
 ; ============================================================
-; TEST 11 with LOCAL TRAMPOLINE
+; TEST 11
 ; ============================================================
 test11_fail:
     rjmp fail
@@ -309,7 +320,7 @@ test11_start:
     tst r16
     brne test11_fail
 
-    rcall inc11
+    rjmp inc11
 
 get1_11:
     ldi r16, 1
@@ -320,11 +331,11 @@ get0_11:
     ret
 
 inc11:
-    rcall test12_start
-    rjmp test11_fail
+    rcall inc_case_generic
+    rjmp test12_start
 
 ; ============================================================
-; TEST 12 with LOCAL TRAMPOLINE
+; TEST 12
 ; ============================================================
 test12_fail:
     rjmp fail
@@ -340,7 +351,7 @@ test12_start:
     cpi r17, 0xAD
     brne test12_fail
 
-    rcall inc12
+    rjmp inc12
 
 preserve12:
     push r16
@@ -354,11 +365,11 @@ preserve12:
     ret
 
 inc12:
-    rcall test13_start
-    rjmp test12_fail
+    rcall inc_case_generic
+    rjmp test13_start
 
 ; ============================================================
-; TEST 13 with LOCAL TRAMPOLINE
+; TEST 13
 ; ============================================================
 test13_fail:
     rjmp fail
@@ -369,7 +380,7 @@ test13_start:
 
     cpi r18, 2
     brne test13_fail
-    rcall inc13
+    rjmp inc13
 
 forward13:
     inc r18
@@ -381,11 +392,11 @@ inner13:
     ret
 
 inc13:
-    rcall test14_start
-    rjmp test13_fail
+    rcall inc_case_generic
+    rjmp test14_start
 
 ; ============================================================
-; TEST 14 with LOCAL TRAMPOLINE
+; TEST 14
 ; ============================================================
 test14_fail:
     rjmp fail
@@ -395,18 +406,18 @@ test14_start:
     rcall rel14
     cpi r19, 1
     brne test14_fail
-    rcall inc14
+    rjmp inc14
 
 rel14:
     inc r19
     ret
 
 inc14:
-    rcall test15_start
-    rjmp test14_fail
+    rcall inc_case_generic
+    rjmp test15_start
 
 ; ============================================================
-; TEST 15 with LOCAL TRAMPOLINE
+; TEST 15
 ; ============================================================
 test15_fail:
     rjmp fail
@@ -416,18 +427,18 @@ test15_start:
     rcall tgt15
     cpi r20, 0x55
     brne test15_fail
-    rcall inc15
+    rjmp inc15
 
 tgt15:
     ldi r20, 0x55
     ret
 
 inc15:
-    rcall test16_start
-    rjmp test15_fail
+    rcall inc_case_generic
+    rjmp test16_start
 
 ; ============================================================
-; TEST 16 with LOCAL TRAMPOLINE
+; TEST 16
 ; ============================================================
 test16_fail:
     rjmp fail
@@ -440,7 +451,7 @@ test16_start:
 
     cpi r21, 3
     brne test16_fail
-    rcall inc16
+    rjmp inc16
 
 c16_1:
     inc r21
@@ -455,11 +466,11 @@ c16_3:
     ret
 
 inc16:
-    rcall test17_start
-    rjmp test16_fail
+    rcall inc_case_generic
+    rjmp test17_start
 
 ; ============================================================
-; TEST 17 with LOCAL TRAMPOLINE
+; TEST 17
 ; ============================================================
 test17_fail:
     rjmp fail
@@ -469,18 +480,18 @@ test17_start:
     rcall isr17
     cpi r22, 0xAA
     brne test17_fail
-    rcall inc17
+    rjmp inc17
 
 isr17:
     ldi r22, 0xAA
     ret
 
 inc17:
-    rcall test18_start
-    rjmp test17_fail
+    rcall inc_case_generic
+    rjmp test18_start
 
 ; ============================================================
-; TEST 18 with LOCAL TRAMPOLINE
+; TEST 18
 ; ============================================================
 test18_fail:
     rjmp fail
@@ -493,7 +504,7 @@ test18_start:
 
     cpi r23, 6
     brne test18_fail
-    rcall success
+    rjmp success        ; FIXED: Clean jump instead of rcall
 
 s0_18: inc r23
        ret
@@ -508,20 +519,10 @@ s2_18: inc r23
 ; ============================================================
 ; SUCCESS AND END
 ; ============================================================
-
 success:
+    rcall inc_case_generic ; Increment one last time to signify completion (optional, up to your test harness)
     ldi r16, 1
     sts final_result, r16
 
 end:
     rjmp end
-
-; ============================================================
-; single counter (only definition kept once)
-; ============================================================
-
-inc_case_rcall_generic:
-    lds r16, test_case
-    inc r16
-    sts test_case, r16
-    ret
