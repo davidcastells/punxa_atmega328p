@@ -6,6 +6,7 @@
 from .Memory import *
 from .Bus import *
 from .USART import *
+from .GPIO import *
 from .single_cycle.singlecycle_processor import *
 
 
