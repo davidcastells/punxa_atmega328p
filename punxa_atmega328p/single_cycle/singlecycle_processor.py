@@ -944,14 +944,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                 A, b = A5, b3
                 vA = yield from self.readByte(A + 0x20)
                 self.skip = ((vA >> b) & 1) == 0
-                print('SBIC {A:02X}, {b}\t\tskip={self.skip}')
+                print(f'SBIC {A:02X}, {b}\t\tskip={self.skip}')
                 
             case 'SBIS':
                 # SBIS A, b -> 1001 1011 AAAA Abbb
                 A, b = A5, b3
                 vA = yield from self.readByte(A + 0x20)
                 self.skip = bool((vA >> b) & 1) 
-                print('SBIS {A:02X}, {b}\t\tskip={self.skip}')
+                print(f'SBIS {A:02X}, {b}\t\tskip={self.skip}')
                     
             case 'SBI': 
                 # SBI A, b → 1001 1010 AAAAA bbb
@@ -2045,7 +2045,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 else:
                     yield from self.writeByte(add, v)
                 
-                print(f'OUT {add:02X}, R{Rr}\t\t[{add:02X}]={v:02X}')
+                print(f'OUT {A6:02X}, R{Rr}\t\t[{add:02X}]={v:02X}')
 
             case 'PUSH':
                 # PUSH Rr → 1001 001d dddd 1111
