@@ -1107,56 +1107,25 @@ class SingleCycleATmega328P(py4hw.Logic):
                 print(f'SBC R{Rd}, R{Rr}, C{self.C}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
                 
             case 'SBCI':
-                raise Exception('SBCI not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = ((self.ins>>4) & 0xF) + 16
-                self.res =  self.reg[self.Rd] - self.K - (self.SREG & 0b1)
+                # SBCI Rd, K -> 0100 KKKK dddd KKKK
+                # Subtract Immediate with Carry
+                K , Rd =  K8, Rd4 + 16 
+                vRd = yield from self.readByte(Rd)
+                
+                res =  vRd - K - self.C
 
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
+                self.Z = 1 if (res & 0xFF) == 0 else 0
+                self.N = (res >> 7) & 1
+                self.C = 1 if vRd < K else 0
+                self.H = 1 if (vRd & 0x0F) < (K & 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (K >> 7) & 1
+                res_sign = (res >> 7) & 1
+                self.V = 1 if (rd_sign != rr_sign) and (res_sign != rd_sign) else 0
+                self.S = self.N ^ self.V
 
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                current_Z = (self.SREG >> 1) & 0b1
-                if (self.res&0xFF == 0) and current_Z == 1:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-                self.reg[self.Rd] =  self.res & 0xFF
-                self.pc += 1
+                yield from self.writeByte(Rd, res & 0xFF)
+                print(f'SBCI R{Rd}, {K}, C{self.C}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
                 
             case 'SBIW':
                 # SBIW Rd, K -> 1001 0111 KKdd KKKK
