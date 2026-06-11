@@ -1520,7 +1520,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                     self.K = self.K - 128
                 
                 if(self.SREG>>S)&1 == 1:
-                    self.pc += + self.K +1
+                    self.pc +=  self.K +1
                 else:
                     self.pc += 1 
             case 'BRBC':

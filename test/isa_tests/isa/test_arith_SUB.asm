@@ -48,10 +48,10 @@ reset:
 test1:
     ldi r16, 30
     ldi r17, 10
+
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 20
-    brne fail1
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail1
     ; -- Z=0 --
@@ -60,14 +60,25 @@ test1:
     brmi fail1
     ; -- V=0 --
     brvs fail1
+
     ; -- S=0: read SREG bit 4 --
     in r18, SREG
     sbrc r18, 4
     rjmp fail1
+    
     ; -- H=0: read SREG bit 5 --
+    ; (in r18, SREG is not needed again since SREG hasn't changed,
+    ; but keeping it is harmless)
     in r18, SREG
     sbrc r18, 5
     rjmp fail1
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    ; (This modifies the SREG, but we don't care anymore)
+    cpi r16, 20
+    brne fail1
+
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test2
 fail1: 
@@ -81,28 +92,41 @@ fail1:
 test2:
     ldi r16, 42
     ldi r17, 42
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0
-    brne fail2
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail2
+    
     ; -- Z=1 --
     brne fail2
+    
     ; -- N=0 --
     brmi fail2
+    
     ; -- V=0 --
     brvs fail2
+    
     ; -- S=0 --
     in r18, SREG
     sbrc r18, 4
     rjmp fail2
+    
     ; -- H=0 --
     in r18, SREG
     sbrc r18, 5
     rjmp fail2
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0
+    brne fail2
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test3
+
 fail2: 
     jmp fail
 
@@ -114,28 +138,43 @@ fail2:
 test3:
     ldi r16, 10
     ldi r17, 20
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 246
-    brne fail3
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=1 --
     brcc fail3
+    
     ; -- Z=0 --
     breq fail3
+    
     ; -- N=1 --
     brpl fail3
+    
     ; -- V=0 --
     brvs fail3
+    
     ; -- S=1 (N=1, V=0 -> S=1) --
     in r18, SREG
     sbrs r18, 4
     rjmp fail3
+    
     ; -- H=0 --
+    ; (in r18, SREG not strictly needed again, but safe to keep)
     in r18, SREG
     sbrc r18, 5
     rjmp fail3
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    ; (This modifies the SREG, but we don't care anymore)
+    cpi r16, 246
+    brne fail3
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test4
+
 fail3: 
     jmp fail
 
@@ -148,28 +187,41 @@ fail3:
 test4:
     ldi r16, 0x10
     ldi r17, 0x01
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0x0F
-    brne fail4
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail4
+    
     ; -- Z=0 --
     breq fail4
+    
     ; -- N=0 --
     brmi fail4
+    
     ; -- V=0 --
     brvs fail4
+    
     ; -- S=0 --
     in r18, SREG
     sbrc r18, 4
     rjmp fail4
+    
     ; -- H=1 --
     in r18, SREG
     sbrs r18, 5
     rjmp fail4
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0x0F
+    brne fail4
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test5
+
 fail4:
     jmp fail
 
@@ -181,28 +233,41 @@ fail4:
 test5:
     ldi r16, 0x70
     ldi r17, 0x90
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0xE0
-    brne fail5
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=1 --
     brcc fail5
+    
     ; -- Z=0 --
     breq fail5
+    
     ; -- N=1 --
     brpl fail5
+    
     ; -- V=1 --
     brvc fail5
+    
     ; -- S=0 (N=1, V=1 -> S=0) --
     in r18, SREG
     sbrc r18, 4
     rjmp fail5
+    
     ; -- H=0 --
     in r18, SREG
     sbrc r18, 5
     rjmp fail5
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0xE0
+    brne fail5
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test6
+
 fail5:
     jmp fail
 
@@ -215,28 +280,41 @@ fail5:
 test6:
     ldi r16, 0x80
     ldi r17, 0x01
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0x7F
-    brne fail6
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail6
+    
     ; -- Z=0 --
     breq fail6
+    
     ; -- N=0 --
     brmi fail6
+    
     ; -- V=1 --
     brvc fail6
+    
     ; -- S=1 (N=0, V=1 -> S=1) --
     in r18, SREG
     sbrs r18, 4
     rjmp fail6
+    
     ; -- H=0 --
     in r18, SREG
     sbrc r18, 5
     rjmp fail6
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0x7F
+    brne fail6
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test7
+
 fail6: 
     jmp fail
 
@@ -248,28 +326,41 @@ fail6:
 test7:
     ldi r16, 0xFF
     ldi r17, 0xFF
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0
-    brne fail7
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail7
+    
     ; -- Z=1 --
     brne fail7
+    
     ; -- N=0 --
     brmi fail7
+    
     ; -- V=0 --
     brvs fail7
+    
     ; -- S=0 --
     in r18, SREG
     sbrc r18, 4
     rjmp fail7
+    
     ; -- H=0 --
     in r18, SREG
     sbrc r18, 5
     rjmp fail7
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0
+    brne fail7
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp test8
+
 fail7: 
     jmp fail
 
@@ -282,28 +373,41 @@ fail7:
 test8:
     ldi r16, 0x20
     ldi r17, 0x19
+    
+    ; Perform the operation
     sub r16, r17
-    ; -- result --
-    cpi r16, 0x07
-    brne fail8
+    
+    ; -- CHECK FLAGS IMMEDIATELY --
     ; -- C=0 --
     brcs fail8
+    
     ; -- Z=0 --
     breq fail8
+    
     ; -- N=0 --
     brmi fail8
+    
     ; -- V=0 --
     brvs fail8
+    
     ; -- S=0 --
     in r18, SREG
     sbrc r18, 4
     rjmp fail8
+    
     ; -- H=1 --
     in r18, SREG
     sbrs r18, 5
     rjmp fail8
+
+    ; -- CHECK NUMERICAL RESULT LAST --
+    cpi r16, 0x07
+    brne fail8
+    
+    ; -- TEST PASSED --
     rcall inc_case
     rjmp success
+
 fail8: 
     jmp fail
 

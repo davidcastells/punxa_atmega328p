@@ -11,13 +11,15 @@
 
 .equ test_case = 0x0100
 .equ final_result = 0x0101
+.equ stack_start = 0x08FF
 .equ SPH = 0x3E
 .equ SPL = 0x3D
 
 reset:
-    ldi r16, 0x03
+    ; FIXED: Dynamically extract High/Low bytes for the Stack Pointer
+    ldi r16, high(stack_start)
     out SPH, r16
-    ldi r16, 0xFF
+    ldi r16, low(stack_start)
     out SPL, r16
 
     ldi r16, 1
@@ -47,7 +49,12 @@ test2:
     ldi r17, 5
     cp r16, r17         ; 10 - 5 = no borrow, C=0
     
-    brlo fail           ; C=0, so NO branch
+    ; FIXED: Local trampoline to prevent out-of-range branch
+    brlo test2_fail     
+    rjmp branch2_ok
+test2_fail:
+    rjmp fail
+branch2_ok:
     rcall inc_case
 
 ; ============================================================
@@ -59,7 +66,11 @@ test3:
     ldi r17, 5
     cp r16, r17         ; 5 - 5 = 0, no borrow, C=0
     
-    brlo fail           ; C=0, so NO branch
+    brlo test3_fail     
+    rjmp branch3_ok
+test3_fail:
+    rjmp fail
+branch3_ok:
     rcall inc_case
 
 ; ============================================================
@@ -99,7 +110,11 @@ test6:
     ldi r17, 200
     cp r16, r17         ; 255 - 200 = no borrow, C=0
     
-    brlo fail           ; C=0, so NO branch
+    brlo test6_fail     
+    rjmp branch6_ok
+test6_fail:
+    rjmp fail
+branch6_ok:
     rcall inc_case
 
 ; ============================================================
@@ -123,7 +138,11 @@ test8:
     ldi r16, 150
     cpi r16, 100        ; 150 - 100 = no borrow, C=0
     
-    brlo fail           ; C=0, so NO branch
+    brlo test8_fail     
+    rjmp branch8_ok
+test8_fail:
+    rjmp fail
+branch8_ok:
     rcall inc_case
 
 ; ============================================================
@@ -149,34 +168,34 @@ test10:
     ldi r17, 3
     sub r16, r17        ; 10 - 3 = no borrow, C=0
     
-    brlo fail           ; C=0, so NO branch
+    brlo test10_fail     
+    rjmp branch10_ok
+test10_fail:
+    rjmp fail
+branch10_ok:
     rcall inc_case
 
 ; ============================================================
 ; TEST 11: Branch with SBC (Subtract with Carry) that causes borrow
 ; ============================================================
 test11:
-    ; Clear carry first
-    clc
+    clc                 ; Clear carry first
     ldi r16, 5
     ldi r17, 10
     sbc r16, r17        ; 5 - 10 - 0 = borrow, C=1
     
-    brlo branch11_ok    ; C=1, so branch
+    brlo branch11_ok    
     rjmp fail
 branch11_ok:
     rcall inc_case
 
 ; ============================================================
-; TEST 12: Branch after SEC (Set Carry) then CPI
-; C=1 explicitly set, then CPI doesn't change C? Actually CPI modifies C
-; So better: test BRLO with C=1 from previous operation
+; TEST 12: Branch after SEC (Set Carry)
+; FIXED: Direct test of Carry flag dependency without redundant CP
 ; ============================================================
 test12:
-    ; First operation sets C=1
-    ldi r16, 0
-    ldi r17, 1
-    cp r16, r17         ; 0 - 1 = borrow, C=1
+    clc                 ; Clear carry to start fresh
+    sec                 ; Explicitly set C=1
     
     brlo branch12_ok    ; C=1, so branch
     rjmp fail
@@ -184,16 +203,13 @@ branch12_ok:
     rcall inc_case
 
 ; ============================================================
-; TEST 13: Branch with SBIC (Skip if Bit in I/O is Clear)
-; Not directly, stick with arithmetic
+; TEST 13: Branch after SBC with carry
 ; ============================================================
 test13:
-    ; Use subtraction with borrow
     sec                 ; Set C=1
     ldi r16, 5
     ldi r17, 5
-    sbc r16, r17        ; 5 - 5 - 1 = borrow? 5-5=0, minus 1 = -1, borrow occurs
-                        ; Actually 5 - 5 - 1 = -1, so borrow, C=1
+    sbc r16, r17        ; 5 - 5 - 1 = -1, borrow, C=1
     
     brlo branch13_ok    ; C=1, so branch
     rjmp fail
@@ -201,7 +217,7 @@ branch13_ok:
     rcall inc_case
 
 ; ============================================================
-; TEST 14: Do NOT branch with BRLO after addition with carry
+; TEST 14: Do NOT branch with BRLO after addition without carry
 ; ADD sets C=0 normally, should NOT branch
 ; ============================================================
 test14:
@@ -209,7 +225,11 @@ test14:
     ldi r17, 20
     add r16, r17        ; 10+20=30, no carry, C=0
     
-    brlo fail           ; C=0, so NO branch
+    brlo test14_fail    
+    rjmp branch14_ok
+test14_fail:
+    rjmp fail
+branch14_ok:
     rcall inc_case
 
 ; ============================================================
@@ -219,7 +239,7 @@ test15:
     ldi r16, 0x80       ; 10000000
     lsl r16             ; Shift left: C becomes 1 (bit 7 shifted out)
     
-    brlo branch15_ok    ; C=1, so branch
+    brlo branch15_ok    
     rjmp fail
 branch15_ok:
     rcall inc_case
@@ -231,7 +251,7 @@ test16:
     ldi r16, 0x01       ; 00000001
     lsr r16             ; Shift right: C becomes 1 (bit 0 shifted out)
     
-    brlo branch16_ok    ; C=1, so branch
+    brlo branch16_ok    
     rjmp fail
 branch16_ok:
     rcall inc_case
