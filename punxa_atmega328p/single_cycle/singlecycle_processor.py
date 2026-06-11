@@ -344,7 +344,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 self.S = self.N ^ self.V
 
                 yield from self.writeByte(Rd, res)
-                print(f'AND R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
+                print(f'ANDI R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
                 
             case 'ASR':
                 # ASR Rd -> 1001 010d dddd 0101

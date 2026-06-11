@@ -183,8 +183,6 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
         case 0b0000001111: return 'FMULSU'
 
 
-
-
     match OP2A10:
         case 0b0100: return 'SBCI'
         case 0b0101: return 'SUBI'
@@ -199,21 +197,21 @@ def ins_to_str(ins): # I am packing all the OP bits, keeping the order
 
 
     match OP1A8A13 :
-        case 0b000010: return 'SBC'
-        case 0b000011: return 'ADD' # Collision LSL
-        case 0b000011: return 'LSL' # Collision ADD
-        case 0b000101: return 'CP'
-        case 0b000111: return 'ADC' # Collision ROL
-        case 0b000111: return 'ROL' # Collision ADC
-        case 0b000110: return 'SUB'
-        case 0b001000: return 'AND' # Collision TST
-        case 0b001000: return 'TST' # Collision AND
-        case 0b001001: return 'EOR' # Collision CLR
-        case 0b001001: return 'CLR' # Collision EOR
-        case 0b001010: return 'OR'
-        case 0b100111: return 'MUL'
-        case 0b000001: return 'CPC'
-        case 0b001011: return 'MOV'
+        case 0b0000_10: return 'SBC'
+        case 0b0000_11: return 'ADD' # Collision LSL
+        case 0b0000_11: return 'LSL' # Collision ADD
+        case 0b0001_01: return 'CP'
+        case 0b0001_11: return 'ADC' # Collision ROL
+        case 0b0001_11: return 'ROL' # Collision ADC
+        case 0b0001_10: return 'SUB'
+        case 0b0010_00: return 'AND' # Collision TST
+        case 0b0010_00: return 'TST' # Collision AND
+        case 0b0010_01: return 'EOR' # Collision CLR
+        case 0b0010_01: return 'CLR' # Collision EOR
+        case 0b0010_10: return 'OR'
+        case 0b1001_11: return 'MUL'
+        case 0b0000_01: return 'CPC'
+        case 0b0010_11: return 'MOV'
         
         
         case 0b111100: return 'BRBS'
