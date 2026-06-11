@@ -13,8 +13,8 @@ python tb_ISA_tests.py -c "runAllTests()"
 ***Summary***
 
 <pre>
-test_arith      85.7 %   |███████████████████████████████████████░░░░░░|
-test_bitmap     46.2 %   |█████████████████████░░░░░░░░░░░░░░░░░░░░░░░░|
+test_arith      100.0 %  |█████████████████████████████████████████████|
+test_bitmap     100.0 %  |█████████████████████████████████████████████|
 test_logic      71.4 %   |█████████████████████████████████░░░░░░░░░░░░|
 test_ctrflow    16.7 %   |████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░|
 test_data       0.0 %    |░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░|
@@ -30,18 +30,18 @@ Test test_arith_DEC.asm             = OK
 Test test_arith_INC.asm             = OK
 Test test_arith_MUL.asm             = OK
 Test test_arith_SBIW.asm            = OK
-Test test_arith_SUB.asm             = FAILED - Failed in test case 0
-Test test_bitmap_ASR.asm            = FAILED - Failed in test case 3
-Test test_bitmap_BLD.asm            = FAILED - Failed in test case 2
-Test test_bitmap_BST.asm            = FAILED - Failed in test case 3
-Test test_bitmap_CBI.asm            = FAILED - Failed in test case 1
+Test test_arith_SUB.asm             = OK
+Test test_bitmap_ASR.asm            = OK
+Test test_bitmap_BLD.asm            = OK
+Test test_bitmap_BST.asm            = OK
+Test test_bitmap_CBI.asm            = OK
 Test test_bitmap_LSL.asm            = OK
 Test test_bitmap_LSR.asm            = OK
 Test test_bitmap_ROL.asm            = OK
 Test test_bitmap_ROR.asm            = OK
-Test test_bitmap_SBI.asm            = FAILED - Failed in test case 1
-Test test_bitmap_SBIC.asm           = FAILED - Failed in test case 2
-Test test_bitmap_SBIS.asm           = FAILED - Failed in test case 1
+Test test_bitmap_SBI.asm            = OK
+Test test_bitmap_SBIC.asm           = OK
+Test test_bitmap_SBIS.asm           = OK
 Test test_bitmap_SBRC.asm           = OK
 Test test_bitmap_SBRS.asm           = OK
 Test test_logic_AND.asm             = OK
@@ -69,7 +69,7 @@ Test test_ctrflow_RCALL.asm         = FAILED - Failed in test case 1
 Test test_ctrflow_RET.asm           = FAILED - Failed in test case 5
 Test test_ctrflow_RETI.asm          = FAILED - Step count > limit
 Test test_ctrflow_RJMP.asm          = FAILED - Failed in test case 7
-Test test_data_IN.asm               = FAILED - Failed in test case 2
+Test test_data_IN.asm               = FAILED - 8
 Test test_data_LD.asm               = FAILED - Failed to assemble "sts 0+1, r17"
 Test test_data_LDI.asm              = FAILED - Failed in test case 8
 Test test_data_LDS.asm              = FAILED - Failed to assemble "sts 0+1, r16"
@@ -81,7 +81,7 @@ Test test_data_ST.asm               = FAILED - invalid literal for int() with ba
 Test test_data_STS.asm              = FAILED - Too many cycles waiting to complete instruction
 Test test_mcu_BREAK.asm             = FAILED - BREAK not validated
 Test test_mcu_CLC.asm               = FAILED - Too many cycles waiting to complete instruction
-Test test_mcu_CLI.asm               = FAILED - Failed in test case 3
+Test test_mcu_CLI.asm               = FAILED - Too many cycles waiting to complete instruction
 Test test_mcu_CLN.asm               = FAILED - Failed in test case 5
 Test test_mcu_CLZ.asm               = FAILED - Too many cycles waiting to complete instruction
 Test test_mcu_NOP.asm               = FAILED - Step count > limit
@@ -91,5 +91,5 @@ Test test_mcu_SEN.asm               = FAILED - Failed in test case 1
 Test test_mcu_SEZ.asm               = FAILED - Too many cycles waiting to complete instruction
 Test test_mcu_SLEEP.asm             = FAILED - Failed to assemble ".org 0x0002"
 Test test_mcu_WDR.asm               = FAILED - WDR not validated
-Total: 67 Correct: 20 (29.9 %)
+Total: 67 Correct: 28 (41.8 %)
 ```
