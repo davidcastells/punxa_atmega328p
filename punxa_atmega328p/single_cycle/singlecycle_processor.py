@@ -389,9 +389,9 @@ class SingleCycleATmega328P(py4hw.Logic):
                 # Clears bit in I/O register
                 A, b = A5, b3
                 v = yield from self.readByte(A + 0x20)
-                v = (1 << b) | (v & ~(1<<b))
+                v = (v & ~(1<<b))
                 yield from self.writeByte(A + 0x20, v)
-                print('CBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}')                
+                print(f'CBI {A:02X}, {b}\t\t[{A+0x20:02X}]={v:02X}')                
                 
             case 'OR':
                 raise Exception('OR not reviewed')
@@ -960,7 +960,7 @@ class SingleCycleATmega328P(py4hw.Logic):
                 v = yield from self.readByte(A + 0x20)
                 v = v | (1 << b)
                 yield from self.writeByte(A + 0x20, v)
-                print('SBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}') 
+                print(f'SBI {A:02X}, b3\t\t[{A+0x20:02X}]={v:02X}') 
                 
             case 'LSL': 
                 raise Exception('LSL not reviewed')
@@ -1285,9 +1285,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 # BLD Rd, b -> 1111 100d dddd 0bbb
                 # Bit load from T Flag
                 Rd, b = Rd5, b3
-                self.T
                 vRd = yield from self.readByte(Rd)
-                vRd = (self.T << b3) | (vRd & ~(1 << b3))
+                vRd = (self.T << b) | (vRd & ~(1 << b))
                 yield from self.writeByte(Rd, vRd)
                 print(f'BLD R{Rd}, {b}\t\tR{Rd}={vRd:02X}')
 
