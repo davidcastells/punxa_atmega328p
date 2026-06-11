@@ -704,6 +704,16 @@ def parts_to_ins(parts):
         p3 = Rr & 0xF
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
+    elif (op == 'SBCI'):
+        # SBCI Rd, K -> 0100 KKKK dddd KKKK
+        p0 = 0b0100
+        Rd = reg_to_index(parts[1]) - 16
+        K = get_int(parts[2])
+        p1 = (K >> 4)
+        p2 = Rd
+        p3 = K & 0xF
+        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
+    
     elif (op == 'SBI'):
         # SBI A, b -> 1001 1010 AAAA Abbb
         p0 = 0b1001
