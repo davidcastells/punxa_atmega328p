@@ -354,6 +354,7 @@ def parts_to_ins(parts):
         p0 = 0b0111
         r = reg_to_index(parts[1])
         k = get_int(parts[2])
+        k = 0xff - k
         p1 = k >> 4
         assert(r >= 16)
         p2 = r - 16
@@ -604,11 +605,11 @@ def parts_to_ins(parts):
         return [0b0000_0000_0000_0000]
     
     elif (op == 'OR'):
-        # OR Rd, Rr -> 0010 11rd dddd rrrr
+        # OR Rd, Rr -> 0010 10rd dddd rrrr
         p0 = 0b0010
         Rd = reg_to_index(parts[1])
         Rr = reg_to_index(parts[2])
-        p1 = 0b1100 | ((Rr >> 4) << 1) | (Rd>>4)
+        p1 = 0b1000 | ((Rr >> 4) << 1) | (Rd>>4)
         p2 = Rd & 0xF
         p3 = Rr & 0xF        
         return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
@@ -903,6 +904,8 @@ def is_relative_jump(asm):
     if (parts[0] == 'BRBS'): return True
     if (parts[0] == 'BRCC'): return True
     if (parts[0] == 'BRCS'): return True
+    if (parts[0] == 'BRSH'): return True
+    if (parts[0] == 'BRLO'): return True
     if (parts[0] == 'BREQ'): return True
     if (parts[0] == 'BRGE'): return True
     if (parts[0] == 'BRLT'): return True
@@ -921,6 +924,8 @@ def is_valid_relative(asm, delta):
     if (parts[0] == 'BRBS'): return valid7
     if (parts[0] == 'BRCC'): return valid7
     if (parts[0] == 'BRCS'): return valid7
+    if (parts[0] == 'BRSH'): return valid7
+    if (parts[0] == 'BRLO'): return valid7
     if (parts[0] == 'BREQ'): return valid7
     if (parts[0] == 'BRGE'): return valid7
     if (parts[0] == 'BRLT'): return valid7

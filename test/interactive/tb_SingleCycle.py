@@ -148,45 +148,30 @@ RJMP -1              ; Infinite self-loop
 from punxa_atmega328p.assembly import assemble_program
  
 words = assemble_program(program)
-
-# Memory Map
-# 0x0 - 0x1r   GP Registers r0-r31
-# 0x0020 - 0x005F   I/O registers
-# 0x0060 - 0x00FF   Extended I/O Registers
-#   0x00C0 - 0x00C6    USART
-# 0x0100 - 0x08FF   Internal SRAM
 dw = 8 
 aw = 16
 
-
-#                +-----+     +------------------------------+
-#                | bus |--R--| GP Registers + I/O Registers |
-#                |     |     +------------------------------+
-#  +-----+       |     |     +-------+
-#  | CPU |--data-|     |--B--| USART |
-#  |     |       |     |     + ------+
-#  |     |       |     |     +------+
-#  |     |       |     |--U--| SRAM |
-#  |     |       |     |     +------+
-#  |     |       +-----+
-#  |     |       +-------+
-#  |     |--ins--| Flash |
-#  +-----+       +-------+
-
+# Memory Map
+# 0x0 - 0x1r   GP Registers r0-r31
 data_p = punxa.MemoryInterface(hw, 'data_mem', dw, aw)
 ins_p = punxa.MemoryInterface(hw, 'ins_mem', 16, 14)
 
+cpu_p = punxa.MemoryInterface(hw, 'cpu', dw, aw)
 reg_p = punxa.MemoryInterface(hw, 'reg', dw, 5)         # 2^5 = 32 registers
 usart_p = punxa.MemoryInterface(hw, 'usart', dw, 3)     # 2^3 = 8 registers
 mem_p = punxa.MemoryInterface(hw, 'mem', dw, 11)        # 2048 bytes
 
 
 punxa.MultiplexedBus(hw, 'bus', data_p, [(reg_p, 0x0), (usart_p, 0xC0), (mem_p, 0x100)])
+punxa.MultiplexedBus(hw, 'bus', cpu_p, [(reg_p, 0x0), (usart_p, 0xC0), (mem_p, 0x100)])
 
 cpu = punxa.SingleCycleATmega328P(hw, 'cpu', ins_p, data_p, reset_address=0)
 reg = punxa.Ram_Memory(hw, 'reg', dw, 5, reg_p)                 # 32 B
 mem = punxa.Ram_Memory(hw, 'men', dw, 11, mem_p)                # 2048 B
 ins_mem = punxa.Ram_Memory(hw, 'ins_men', 16, 14, ins_p)        # 16 k words (of 16 bits) 
+cpu = punxa.SingleCycleATmega328P(hw, 'cpu', cpu_p)
+reg = punxa.Ram_Memory(hw, 'reg', dw, 5, reg_p)
+mem = punxa.Ram_Memory(hw, 'men', dw, 11, mem_p)
 usart = punxa.VirtualUSART(hw, 'usart', usart_p)
 
 watch = []
@@ -220,3 +205,4 @@ banner = '''
 '''
 
 print(banner)
+py4hw.gui.Workbench(hw)

@@ -9,7 +9,7 @@
 .equ SPL = 0x3D
 
 reset:
-    ldi r16, 0x03
+    ldi r16, 0x08
     out SPH, r16
     ldi r16, 0xFF
     out SPL, r16
