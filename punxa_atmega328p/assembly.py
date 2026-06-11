@@ -904,6 +904,8 @@ def is_relative_jump(asm):
     if (parts[0] == 'BRBS'): return True
     if (parts[0] == 'BRCC'): return True
     if (parts[0] == 'BRCS'): return True
+    if (parts[0] == 'BRSH'): return True
+    if (parts[0] == 'BRLO'): return True
     if (parts[0] == 'BREQ'): return True
     if (parts[0] == 'BRGE'): return True
     if (parts[0] == 'BRLT'): return True
@@ -922,6 +924,8 @@ def is_valid_relative(asm, delta):
     if (parts[0] == 'BRBS'): return valid7
     if (parts[0] == 'BRCC'): return valid7
     if (parts[0] == 'BRCS'): return valid7
+    if (parts[0] == 'BRSH'): return valid7
+    if (parts[0] == 'BRLO'): return valid7
     if (parts[0] == 'BREQ'): return valid7
     if (parts[0] == 'BRGE'): return valid7
     if (parts[0] == 'BRLT'): return valid7
