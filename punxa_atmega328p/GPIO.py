@@ -270,3 +270,36 @@ class PortX(py4hw.Logic):
         else:
             self.READY.put(0)  
         
+class VirtualGPIO(py4hw.Logic):
+    def __init__(self,parent,name:str,memory:MemoryInterface):
+        super().__init__(parent,name)
+
+        self.interface = self.addInterfaceSink('port',memory)
+        
+        self.port_b = 0
+        self.ddr_b = 0
+
+    def clock(self):
+        add = self.interface.address.get()
+        v = self.interface.write_data.get()
+        
+        add_map = {0x3: 'PINB', 0x4: 'DDRB', 0x5 : 'PORTB'}
+        
+        if (self.interface.read.get()):
+            print(f'Reading GPIO {add_map[add]}')
+            if (add == 0x03 or add == 0x05):
+                self.interface.read_data.prepare(self.port_b)
+            elif (add == 0x04):
+                self.interface.read_data.prepare(self.ddr_b)
+            self.interface.resp.prepare(1)
+            
+        elif (self.interface.write.get()):
+            print(f'Writing GPIO {add_map[add]}={v:02X}')
+            if (add == 0x5):
+                self.port_b = v
+            elif (add == 0x4):
+                self.ddr_b = v
+            self.interface.resp.prepare(1)
+            
+        else:
+            self.interface.resp.prepare(0)
