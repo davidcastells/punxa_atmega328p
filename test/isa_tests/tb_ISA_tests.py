@@ -39,18 +39,24 @@ def prepareTest(file):
     data_p = punxa.MemoryInterface(hw, 'data_mem', dw, aw)
     ins_p = punxa.MemoryInterface(hw, 'ins_mem', 16, 14)
     
+    gpio_p = punxa.MemoryInterface(hw, 'gpio', dw, 5)       # gpios
     reg_p = punxa.MemoryInterface(hw, 'reg', dw, 7)         # 2^5 = 32 registers + 64 I/O registers
     usart_p = punxa.MemoryInterface(hw, 'usart', dw, 3)     # 2^3 = 8 registers
     mem_p = punxa.MemoryInterface(hw, 'mem', dw, 11)        # 2048 bytes
     
     
-    punxa.MultiplexedBus(hw, 'bus', data_p, [(reg_p, 0x0, 0x20 + 0x40), (usart_p, 0xC0), (mem_p, 0x100)])
+    punxa.MultiplexedBus(hw, 'bus', data_p, 
+                         [(reg_p, 0x0, 0x20),
+                          (gpio_p, 0x20, 0x10),
+                          (usart_p, 0xC0), 
+                          (mem_p, 0x100)])
     
     cpu = punxa.SingleCycleATmega328P(hw, 'cpu', ins_p, data_p, reset_address=0)
     reg = punxa.Ram_Memory(hw, 'reg', dw, 7, reg_p)                 # 32 B
     mem = punxa.Ram_Memory(hw, 'men', dw, 11, mem_p)                # 2048 B
     ins_mem = punxa.Ram_Memory(hw, 'ins_men', 16, 14, ins_p)        # 16 k words (of 16 bits) 
     usart = punxa.VirtualUSART(hw, 'usart', usart_p)
+    gpio = punxa.VirtualGPIO(hw, 'gpio', gpio_p)
     
     watch = []
     watch.extend(py4hw.debug.getInterfaceWires(ins_p))
