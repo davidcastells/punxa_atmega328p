@@ -16,13 +16,6 @@ Test/Code_Test/EXPECTED_REGISTER_VALUES_FS.txt
 Test/TB_of_USART/.env
 
 __pycache__
-<<<<<<< HEAD
 .spyproject
 punxa_atmega328p.egg-info
-=======
-
-punxa_atmega328p.egg-info
-
-
 test/TB_of_Timer/Test_Results.txt
->>>>>>> e018bb4bde55a28ace168141fc3421c1b48746a9
