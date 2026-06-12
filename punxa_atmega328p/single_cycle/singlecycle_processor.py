@@ -134,6 +134,16 @@ class SingleCycleATmega328P(py4hw.Logic):
         # only assuming insret is implemented
         return self.csr[csr] 
         
+    def updateFlags(self, alu_result, is16=False):
+        if (is16):
+            self.Z = 1 if (alu_result & 0xFFFF) == 0 else 0
+            self.N = 1 if (alu_result & 0x8000) else 0
+        else:
+            self.Z = 1 if (alu_result & 0xFF) == 0 else 0
+            self.N = 1 if (alu_result & 0x80) else 0
+        
+        self.S = self.N ^ self.V
+        
     def getSREG(self):
         '''
         Returns the SREG register and the string with the name of the flags
@@ -255,15 +265,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 res = vRd + vRr
                 
-                self.Z = 1 if (res&0xFF == 0) else 0
-                self.N = (res >> 7) & 1  
                 self.C = 1 if (res > 0xFF) else 0                
                 self.H =  1 if (((vRd & 0x0F) + (vRr & 0x0F)) > 0x0F) else 0
                 rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
                 rr_sign = (vRr >> 7) & 1      # Bit 7 of Rr
                 res_sign = (res >> 7) & 1     # Bit 7 of result
                 self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res)
                 
@@ -279,15 +287,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 res =  vRd + vRr + self.C
                 
-                self.Z = 1 if (res & 0xFF) == 0 else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.C = 1 if res > 0xFF else 0
                 self.H = 1 if (((vRd & 0x0F) + (vRr & 0x0F) + self.C) > 0x0F) else 0
                 rd_sign = (vRd >> 7) & 1
                 rr_sign = (vRr >> 7) & 1
                 res_sign = ((res & 0xFF) >> 7) & 1
                 self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 yield from self.writeByte(Rd, res & 0xFF)
                 
                 print(f'ADD R{Rd}, R{Rr}\t\tR{Rd}={res:02X}\t{self.getFlagString()}')
@@ -302,13 +308,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 res =  (vRdh <<8 | vRdl )  +  K
                 resh = (res >> 8) & 0xFF
                 resl = res & 0xFF
-                self.Z = 1 if (res == 0) else 0
+                
                 self.C = 1 if (res > 0xFFFF) else 0
-                self.N = 1 if (res & 0x8000) else 0
+                
                 rd_sign = (vRdh >> 7) & 1
                 res_sign = (res >> 15) & 1
                 self.V = 1 if (rd_sign == 0) and (res_sign == 1) else 0
-                self.S = self.N ^ self.V                
+                self.updateFlags(res, is16=True)      
                 yield from self.writeByte(Rd+1, resh)
                 yield from self.writeByte(Rd, resl)
                 print(f'ADIW R{Rd}, {K}\t\tR{Rd+1}={resh:02X} R{Rd}={resl:02X} {self.getFlagString()}')
@@ -321,10 +327,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 res =  vRd & vRr
 
-                self.Z = 1 if (res == 0) else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.V = 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res)
                 
@@ -338,10 +342,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 vRd = yield from self.readByte(Rd)
                 res =  vRd & K 
 
-                self.Z = 1 if (res == 0) else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.V = 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
 
                 yield from self.writeByte(Rd, res)
                 print(f'ANDI R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
@@ -358,9 +360,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 self.C = bit_shifted_out
                 self.Z = 1 if res == 0 else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.V = self.N ^ self.C
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 # self.H not affected                 
                 yield from self.writeByte(Rd, res)                
                 print(f'ASR R{Rd}\t\tR{Rd}={res:02X}')
@@ -404,10 +405,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 res = (vRd | vRr) & 0xFF  # Ensure it stays within 8-bit bounds
                 
                 # Update Flags according to AVR specifications for OR
-                self.Z = 1 if (res == 0) else 0
-                self.N = (res >> 7) & 1
                 self.V = 0                # V is always cleared (0) for OR
-                self.S = self.N ^ self.V  # S = N ⊕ V (which will effectively equal N)
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res)
                 
@@ -418,10 +417,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 K, Rd = K8, (Rd4+16)
                 vRd = yield from self.readByte(Rd)
                 res =  vRd | K 
-                self.Z = 1 if (res == 0) else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.V = 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 yield from self.writeByte(Rd, res)
                 print(f'OR R{Rd}, {K:02X}\t\tR{Rd}={res:02X} {self.getFlagString()}')
                 
@@ -451,10 +448,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 res = 0xFF - vRd
                 self.C = 1
                 self.H = 1
-                self.Z = 1 if res == 0 else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.V = 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 yield from self.writeByte(Rd, res)
                 print(f'COM R{Rd}\t\tR{Rd}={res:02X} {self.getFlagString()}')
                 
@@ -464,12 +459,10 @@ class SingleCycleATmega328P(py4hw.Logic):
                 vRd = yield from self.readByte(Rd)
                 res = (-vRd) & 0xFF
 
-                self.Z = 1 if res == 0 else 0
-                self.N = 1 if (res & 0x80) else 0
                 self.C = 1 if res != 0 else 0
                 self.H = 1 if ((res & 0x08) != 0) else 0
                 self.V = 1 if (vRd == 0x80) else 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res )
                 print('NEG R{Rd}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
@@ -549,10 +542,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 res = vRd + 1
                 
-                self.Z = 1 if (res == 0) else 0
-                self.N = (res >> 7) 
                 self.V = 1 if vRd == 0x7F else 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res & 0xFF)
 
@@ -564,10 +555,8 @@ class SingleCycleATmega328P(py4hw.Logic):
                 vRd = yield from self.readByte(Rd)
                 
                 res = vRd - 1
-                self.Z = 1 if (res == 0) else 0
-                self.N = (res >> 7) 
                 self.V = 1 if (vRd == 0x80) else 0 
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 yield from self.writeByte(Rd, res & 0xFF)
 
@@ -806,19 +795,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
 
             case 'CPSE':
-                raise Exception('CPSE not reviewed')
-                self.Rr = ((self.ins>>8)&0b1)<<4|(self.ins & 0xF)
-                self.Rd = ((self.ins>>9)&0b1)<<4|((self.ins>>4) & 0xF)
-
-
-                if self.reg[self.Rr] == self.reg[self.Rd]:
-                    next_ins = ins_to_str(self.flash[self.pc])
-                    if(next_ins == 'CALL' or next_ins == 'JMP' or next_ins == 'STS' or next_ins == 'LDS'):
-                        self.pc += 3 ##skip 2 word instruction
-                    else:
-                        self.pc += 2## skip 1 word instruction 
-                else:
-                    self.pc += 1
+                # CPSE Rd, Rr -> 0001 00rd dddd rrrr
+                Rr, Rd = Rr5, Rd5
+                vRr = yield from self.readByte(Rr)
+                vRd = yield from self.readByte(Rd)
+                self.skip = (vRd == vRd)
+                print(f'CPSE R{Rd}, R{Rr}\t\tskip={self.skip}')
+                
             case 'CP':
                 # CP Rd, Rr -> 0001 01rd dddd rrrr
                 Rr, Rd = Rr5, Rd5
@@ -826,15 +809,14 @@ class SingleCycleATmega328P(py4hw.Logic):
                 vRd = yield from self.readByte(Rd)
                 res =  vRd - vRr
 
-                self.Z = 1 if (res & 0xFF) == 0 else 0
-                self.N = 1 if (res & 0x80) else 0
+                
                 self.C = 1 if vRd < vRr else 0
                 self.H = 1 if ((vRr & 0x0F) > (vRd & 0x0F)) else 0
                 rd_sign = (vRd >> 7) & 1
                 rr_sign = (vRr >> 7) & 1
                 res_sign = ((res & 0xFF) >> 7) & 1
                 self.V = 1 if (rd_sign == 1 and rr_sign == 0 and res_sign == 0) or (rd_sign == 0 and rr_sign == 1 and res_sign == 1) else 0
-                self.S = self.N ^ self.V
+                self.updateFlags(res)
                 
                 print(f'CP R{Rr}, R{Rd}\t\t{self.getFlagString()}')
                 
@@ -896,17 +878,16 @@ class SingleCycleATmega328P(py4hw.Logic):
                 K, Rd = K8, Rd4 + 16
                 vRd = yield from self.readByte(Rd)
                 
-                res = (vRd - K) 
+                res = (vRd - K) & 0xFF
 
-                self.Z = 1 if (res == 0) else 0
-                self.N = (res & 0x80) >> 7
                 self.C = 1 if (vRd < K) else 0
                 self.H =  1 if ((vRd & 0x0F) - (K & 0x0F)) < 0 else 0
                 rd_sign = (vRd >> 7) & 1      # Bit 7 of Rd
                 rr_sign = (K >> 7) & 1      # Bit 7 of Rr
                 res_sign = (res >> 7) & 1     # Bit 7 of result
-                self.V = 1 if ((rd_sign == rr_sign) and (rd_sign != res_sign)) else 0
-                self.S = self.N ^ self.V
+                self.V = 1 if ((rd_sign != rr_sign) and (rd_sign != res_sign)) else 0
+                
+                self.updateFlags(res)
                 
                 print(f'CPI R{Rd}, {K:02X}\t\t{self.getFlagString()}')
                 
@@ -1016,73 +997,41 @@ class SingleCycleATmega328P(py4hw.Logic):
                 
                 res =  vRd - vRr
 
-                self.Z = 1 if (res & 0xFF) == 0 else 0
-                self.N = (res >> 7) & 1
                 self.C = 1 if vRd < vRr else 0
                 self.H = 1 if (vRd & 0x0F) < (vRr & 0x0F) else 0
                 rd_sign = (vRd >> 7) & 1
                 rr_sign = (vRr >> 7) & 1
                 res_sign = (res >> 7) & 1
                 self.V = 1 if (rd_sign != rr_sign) and (res_sign != rd_sign) else 0
-                self.S = self.N ^ self.V
+                
+                
+                self.updateFlags(res)
 
                 yield from self.writeByte(Rd, res & 0xFF)
                 
                 print(f'SUB R{Rd}, R{Rr}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
 
             case 'SUBI':
-                raise Exception('SUBI not reviewed')
-                self.K =  ((self.ins>>4)&0xF0)|(self.ins&0xF)
-                self.Rd = 16 + ((self.ins >> 4) & 0xF)
-                self.res = self.reg[self.Rd] - self.K
+                # SUBI Rd, K -> 0101 KKKK dddd KKKK
+                # Subtract Immediate
+                K, Rd = K8, Rd4 + 16
+                vRd = yield from self.readByte(Rd)
+                res = vRd - K
 
-                Rd7= ((self.reg[self.Rd]&0xFF)>>7)&0b1
-                K7= ((self.K&0xFF)>>7)&0b1
-                R7 = ((self.res&0xFF)>>7)&0b1
+                self.C = 1 if vRd < K else 0
+                self.H = 1 if (vRd & 0x0F) < (K & 0x0F) else 0
+                rd_sign = (vRd >> 7) & 1
+                rr_sign = (K >> 7) & 1
+                res_sign = (res >> 7) & 1
+                self.V = 1 if (rd_sign != rr_sign) and (res_sign != rd_sign) else 0
+                
+                
+                self.updateFlags(res)
 
-                #C
-                if ((not Rd7) & K7 )|( K7 & R7)|( R7 & (not Rd7)):
-                    self.SREG |= (1<<0)
-                else:
-                    self.SREG &= ~(1<<0)
-                #Z 
-                if self.res == 0:
-                    self.SREG |= (1<<1)
-                else:
-                    self.SREG &= ~(1<<1)
-                #N
-                if R7 == 1:
-                    self.SREG |= (1<<2)
-                else:
-                    self.SREG &= ~(1<<2)
-                #V
-                V = ((Rd7 & (not K7) & (not R7)) | ((not Rd7) & K7 & R7))&0b1
-
-                if V == 1:
-                    self.SREG |= (1<<3)
-                else:
-                    self.SREG &= ~(1<<3)
-                #S
-                if V^R7:
-                    self.SREG |= (1<<4)
-                else:
-                    self.SREG &= ~(1<<4)
-
-                #H
-                Rd3= ((self.reg[self.Rd]&0xFF)>>3)&0b1
-                K3= ((self.K&0xFF)>>3)&0b1
-                R3 = ((self.res&0xFF)>>3)&0b1
-
-                if ((not Rd3) & K3)|(K3 & R3)|(R3 & (not Rd3)):
-                    self.SREG |= (1<<5)
-                else:
-                    self.SREG &= ~(1<<5)
-
-
-
-                self.reg[self.Rd] =  self.res & 0xFF
-
-                self.pc += 1
+                yield from self.writeByte(Rd, res & 0xFF)
+                
+                print(f'SUBI R{Rd}, {K}\t\tR{Rd}={res&0xFF:02X} {self.getFlagString()}')
+                
             case 'SBC':
                 # SBC Rd,Rr -> 0000 10rd dddd rrrr
                 Rr, Rd = Rr5, Rd5
@@ -1137,14 +1086,13 @@ class SingleCycleATmega328P(py4hw.Logic):
                 val = ((vRh << 8) | vRl)
                 res = val - K
 
-                self.Z = 1 if (res & 0xFFFF) == 0 else 0
+                
                 self.C = 1 if K > val else 0
-                self.N = 1 if (res & 0x8000) else 0
                 val_sign = (val >> 15) & 1
                 res_sign = (res >> 15) & 1
                 self.V = 1 if (val_sign == 0 and res_sign == 1) else 0
-                self.S = self.N ^ self.V
-
+                
+                self.updateFlags(res, is16=True)
                 yield from self.writeByte(Rd + 1 , (res>>8) & 0xFF)
                 yield from self.writeByte(Rd, res & 0xFF)
                 
