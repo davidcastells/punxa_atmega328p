@@ -35,6 +35,7 @@ def parts_to_ins(parts):
     
     op = parts[0].upper()
     
+    
     if (op == 'ADD'):
         # ADD Rd, Rr -> 0000 11rd dddd rrrr
         p0 = 0b0000
@@ -171,12 +172,8 @@ def parts_to_ins(parts):
     
     elif (op == 'BRGE'):
         # BRGE k -> 1111 01kk kkkk k100
-        p0 = 0b1111
-        k = get_int(parts[1])
-        p1 = 0b0100 | ((k >> 5) & 0b11)
-        p2 = (k >> 1) & 0xF
-        p3 = (k & 1) << 3
-        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
+        k = get_int(parts[1]) & 0x7F
+        return [ 0b1111_0100_0000_0100 | (k<<3)]
     
     elif (op == 'BRHC'):
         # BRHC k -> 1111 01kk kkkk k101
@@ -431,13 +428,12 @@ def parts_to_ins(parts):
     
     elif (op == 'CPSE'):
         # CPSE Rd, Rr -> 0001 00rd dddd rrrr
-        p0 = 0b0001
         Rd =  reg_to_index(parts[1]) 
         Rr =  reg_to_index(parts[1]) 
         p1 = ((Rr >> 4) << 1) | (Rd>>4)
         p2 = (Rd & 0xF)
         p3 = (Rr & 0xF)
-        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
+        return [0b0001_0000_0000_0000 | (p1 << 8) | (p2 << 4) | p3 ]
     
     elif (op == 'DEC'):
         # DEC Rd --> 1001 010d dddd 1010.
@@ -653,13 +649,9 @@ def parts_to_ins(parts):
         
     elif (op == 'RCALL'):
         # RCALl k -> 1101 kkkk kkkk kkkk
-        p0 = 0b1101
-        k = get_int(parts[1])
-        p1 = k >> 8
-        p2 = (k >> 4) & 0xF
-        p3 = k & 0xF
+        ip1 = get_int(parts[1])
+        return [0b1101_0000_0000_0000 | (ip1 & 0xFFF)]
         
-        return [((p0 << 12) | (p1 << 8) | (p2 << 4) | p3) ]
     
     elif (op == 'RET'):
         return [0b1001_0101_0000_1000]
@@ -1057,6 +1049,7 @@ def assemble_program(program, debug=False):
             
             print('label->0', line)
             words = assemble(line)  
+            assert(isinstance(words, list))
             #print(line, '-', words)
             off += len(words)
     
